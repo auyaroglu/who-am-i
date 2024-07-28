@@ -1,11 +1,10 @@
 import React from "react"
-import { ThemeSelector } from "../providers/Theme/ThemeSelector"
+import MainScreen from "../components/MainScreen"
 
 const Home = () => {
     return (
-        <div className="rounded-md bg-blue-500 p-4 text-white hover:bg-blue-700">
-            Home
-            <ThemeSelector />
+        <div className="bg-blue-cyan-gradient flex min-h-screen items-center justify-center p-4">
+            <MainScreen />
         </div>
     )
 }

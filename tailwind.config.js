@@ -1,7 +1,12 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
     darkMode: ["selector", '[data-theme="dark"]', ".dark"],
-    content: ["./pages/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
+    content: [
+        "./pages/**/*.{ts,tsx}",
+        "./components/**/*.{ts,tsx}",
+        "./app/**/*.{ts,tsx}",
+        "./src/**/*.{ts,tsx}",
+    ],
     prefix: "",
     theme: {
         container: {
@@ -12,6 +17,12 @@ module.exports = {
             },
         },
         extend: {
+            backgroundImage: {
+                "blue-cyan-gradient":
+                    "linear-gradient(to right, #1e3a8a, #06b6d4)",
+                "orange-gradient":
+                    "linear-gradient(to bottom, #f97316, #fdba74)",
+            },
             colors: {
                 border: "hsl(var(--border))",
                 input: "hsl(var(--input))",
