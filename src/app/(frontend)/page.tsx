@@ -1,11 +1,11 @@
 import React from "react"
-import { ThemeSelector } from "../providers/Theme/ThemeSelector"
+import MainScreen from "../components/MainScreen"
+import { searchParamsProps } from "@/app/shared-types"
 
-const Home = () => {
+const Home = async ({ searchParams }: { searchParams: searchParamsProps }) => {
     return (
-        <div className="rounded-md bg-blue-500 p-4 text-white hover:bg-blue-700">
-            Home
-            <ThemeSelector />
+        <div className="flex min-h-screen items-center justify-center bg-blue-cyan-gradient p-4">
+            <MainScreen searchParams={searchParams} />
         </div>
     )
 }

@@ -1,15 +1,13 @@
 import { ReactNode } from "react"
 import { cn } from "@/app/lib/utils"
 import { Inter as FontSans } from "next/font/google"
-import { Providers } from "../providers"
-import { InitTheme } from "../providers/Theme/InitTheme"
+import { Toaster } from "@/app/components/ui/toaster"
 
 type LayoutProps = {
     children: ReactNode
 }
 
 import "./globals.css"
-import { ThemeProvider } from "../providers/Theme"
 
 const fontSans = FontSans({
     subsets: ["latin"],
@@ -19,16 +17,14 @@ const fontSans = FontSans({
 const Layout = ({ children }: LayoutProps) => {
     return (
         <html>
-            <head>
-                <InitTheme />
-            </head>
             <body
                 className={cn(
                     "min-h-screen bg-background font-sans antialiased",
                     fontSans.variable
                 )}
             >
-                <Providers>{children}</Providers>
+                {children}
+                <Toaster />
             </body>
         </html>
     )
