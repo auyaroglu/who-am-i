@@ -1,3 +1,5 @@
+"use client"
+
 import React, { useState } from "react"
 import {
     Form,
@@ -8,32 +10,63 @@ import {
     FormMessage,
 } from "../ui/form"
 import { Input } from "../ui/input"
-import MultipleSelector, { Option } from "../extension/multi-select" // Assuming Option type is exported from multi-select
+import MultipleSelector, { Option } from "../extension/multi-select"
 import { Button } from "../ui/button"
 import { MainFormSchema } from "@/app/lib/validation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
+import { saveRoomData } from "@/app/lib/actions/room.actions"
+import { Category, searchParamsProps } from "@/app/shared-types"
+import { useRouter } from "next/navigation"
+import { useToast } from "@/app/components/ui/use-toast"
+import ButtonLoading from "../ButtonLoading"
 
-interface Category {
-    label: string
-    value: string
-    [key: string]: string | boolean | undefined
-}
+const MainForm = ({
+    categories,
+    searchParams,
+}: {
+    categories: Category[]
+    searchParams: searchParamsProps
+}) => {
+    const router = useRouter()
+    const { toast } = useToast()
+    const [isLoading, setIsLoading] = useState(false) // State for loading status
 
-const MainForm = ({ categories }: { categories: Category[] }) => {
-    const [value, setValue] = useState<string[]>([])
     const form = useForm<z.infer<typeof MainFormSchema>>({
         resolver: zodResolver(MainFormSchema),
         defaultValues: {
             nickname: "",
             categories: [],
-            roomCode: "",
+            roomCode: searchParams?.roomCode || "", // Set default roomCode from searchParams
         },
     })
 
     async function onSubmit(values: z.infer<typeof MainFormSchema>) {
-        console.log(values)
+        setIsLoading(true) // Set loading to true when the form is submitted
+        try {
+            const result = await saveRoomData(values)
+            if (typeof result === "string") {
+                // Show the error message using toast
+                toast({
+                    title: "Hata",
+                    description: result,
+                    variant: "destructive",
+                })
+            } else {
+                console.log(result)
+                router.push(`/room/${result.slug}?user=${result.userId}`)
+            }
+        } catch (error) {
+            console.error("Oda verileri kaydedilirken hata oluştu:", error)
+            toast({
+                title: "Hata",
+                description: "Oda verileri kaydedilirken bir hata oluştu.",
+                variant: "destructive",
+            })
+        } finally {
+            setIsLoading(false) // Set loading to false when the process is complete
+        }
     }
 
     return (
@@ -75,7 +108,12 @@ const MainForm = ({ categories }: { categories: Category[] }) => {
                                 <MultipleSelector
                                     className="bg-white"
                                     maxSelected={3}
-                                    defaultOptions={categories}
+                                    defaultOptions={categories.map(
+                                        (category) => ({
+                                            label: category.name,
+                                            value: category.id,
+                                        })
+                                    )}
                                     placeholder="Tam olarak 3 kategori seçin..."
                                     emptyIndicator={
                                         <p className="text-center text-lg leading-10 text-gray-600 dark:text-gray-400">
@@ -85,9 +123,8 @@ const MainForm = ({ categories }: { categories: Category[] }) => {
                                     onChange={(selected: Option[]) => {
                                         const selectedValues = selected.map(
                                             (option) => option.value
-                                        ) // Mapping selected options to their values
-                                        setValue(selectedValues) // Setting the value state with the array of strings
-                                        field.onChange(selectedValues) // Updating the form field value
+                                        )
+                                        field.onChange(selectedValues)
                                     }}
                                 />
                             </FormControl>
@@ -123,8 +160,9 @@ const MainForm = ({ categories }: { categories: Category[] }) => {
                 <Button
                     type="submit"
                     className="mt-4 w-full rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-700"
+                    disabled={isLoading} // Disable button when loading
                 >
-                    Oda Oluştur veya Katıl
+                    {isLoading ? <ButtonLoading /> : "Oda Oluştur veya Katıl"}
                 </Button>
             </form>
         </Form>

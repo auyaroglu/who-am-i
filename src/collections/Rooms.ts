@@ -15,7 +15,7 @@ const Rooms: CollectionConfig = {
             name: "slug",
             type: "text",
             required: true,
-            unique: true,
+            unique: true, // Slug alanını unique yapıyoruz
         },
         {
             label: "Oyuncular",
@@ -34,6 +34,13 @@ const Rooms: CollectionConfig = {
                     type: "relationship",
                     relationTo: "categories",
                     hasMany: true,
+                },
+                {
+                    label: "Admin Mi?",
+                    name: "isAdmin",
+                    type: "checkbox",
+                    required: true,
+                    defaultValue: false,
                 },
             ],
         },

@@ -1,6 +1,7 @@
 import { ReactNode } from "react"
 import { cn } from "@/app/lib/utils"
 import { Inter as FontSans } from "next/font/google"
+import { Toaster } from "@/app/components/ui/toaster"
 
 type LayoutProps = {
     children: ReactNode
@@ -23,6 +24,7 @@ const Layout = ({ children }: LayoutProps) => {
                 )}
             >
                 {children}
+                <Toaster />
             </body>
         </html>
     )
