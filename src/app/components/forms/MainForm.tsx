@@ -1,3 +1,4 @@
+// src/app/components/forms/MainForm.tsx
 "use client"
 
 import React, { useState } from "react"
@@ -31,23 +32,22 @@ const MainForm = ({
 }) => {
     const router = useRouter()
     const { toast } = useToast()
-    const [isLoading, setIsLoading] = useState(false) // State for loading status
+    const [isLoading, setIsLoading] = useState(false)
 
     const form = useForm<z.infer<typeof MainFormSchema>>({
         resolver: zodResolver(MainFormSchema),
         defaultValues: {
             nickname: "",
             categories: [],
-            roomCode: searchParams?.roomCode || "", // Set default roomCode from searchParams
+            roomCode: searchParams?.roomCode || "",
         },
     })
 
     async function onSubmit(values: z.infer<typeof MainFormSchema>) {
-        setIsLoading(true) // Set loading to true when the form is submitted
+        setIsLoading(true)
         try {
             const result = await saveRoomData(values)
             if (typeof result === "string") {
-                // Show the error message using toast
                 toast({
                     title: "Hata",
                     description: result,
@@ -55,7 +55,9 @@ const MainForm = ({
                 })
             } else {
                 console.log(result)
-                router.push(`/room/${result.slug}?user=${result.userId}`)
+                router.push(
+                    `/room?user=${result.userId}&code=${result.roomCode}`
+                )
             }
         } catch (error) {
             console.error("Oda verileri kaydedilirken hata oluştu:", error)
@@ -65,7 +67,7 @@ const MainForm = ({
                 variant: "destructive",
             })
         } finally {
-            setIsLoading(false) // Set loading to false when the process is complete
+            setIsLoading(false)
         }
     }
 
@@ -160,7 +162,7 @@ const MainForm = ({
                 <Button
                     type="submit"
                     className="mt-4 w-full rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-700"
-                    disabled={isLoading} // Disable button when loading
+                    disabled={isLoading}
                 >
                     {isLoading ? <ButtonLoading /> : "Oda Oluştur veya Katıl"}
                 </Button>
