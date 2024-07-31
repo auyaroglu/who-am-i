@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useRef } from "react"
+import React, { useState, useEffect } from "react"
 import { RoomFormProps, RoomSettings } from "@/app/shared-types"
 import { useToast } from "@/app/components/ui/use-toast"
 import { updateRoomSettings } from "@/app/lib/actions/room.actions"
@@ -15,13 +15,16 @@ const RoomForm: React.FC<RoomFormProps> = ({
         room.settings.roundCount.toString()
     )
     const [playerCount, setPlayerCount] = useState(room.settings.playerCount)
-    const previousPlayerCountRef = useRef(playerCount)
     const { toast } = useToast()
+
+    useEffect(() => {
+        setDuration(room.settings.duration.toString())
+        setRoundCount(room.settings.roundCount.toString())
+        setPlayerCount(room.settings.playerCount)
+    }, [room.settings])
 
     const handlePlayerCountChangeInternal = async (newPlayerCount: string) => {
         if (!isAdmin) return
-
-        previousPlayerCountRef.current = playerCount // Update previous value
 
         const updatedSettings: RoomSettings = {
             duration: Number(duration),
@@ -30,22 +33,29 @@ const RoomForm: React.FC<RoomFormProps> = ({
         }
 
         try {
-            await updateRoomSettings(room.roomCode, updatedSettings)
-            setPlayerCount(newPlayerCount)
-            onPlayerCountChange(newPlayerCount)
-            toast({
-                title: "Başarılı",
-                description: "Oda ayarları başarıyla güncellendi.",
-                variant: "success",
-            })
-        } catch (error: any) {
-            // If an error occurs, revert playerCount to the previous value
-            setPlayerCount(previousPlayerCountRef.current)
+            const result = await updateRoomSettings(
+                room.roomCode,
+                updatedSettings
+            )
+            if (result === "success") {
+                setPlayerCount(newPlayerCount)
+                onPlayerCountChange(newPlayerCount)
+                toast({
+                    title: "Başarılı",
+                    description: "Oda ayarları başarıyla güncellendi.",
+                    variant: "success",
+                })
+            } else {
+                toast({
+                    title: "Hata",
+                    description: result,
+                    variant: "destructive",
+                })
+            }
+        } catch (error) {
             toast({
                 title: "Hata",
-                description:
-                    error.message ||
-                    "Oda ayarları güncellenirken bir hata oluştu.",
+                description: "Oda ayarları güncellenirken bir hata oluştu.",
                 variant: "destructive",
             })
         }

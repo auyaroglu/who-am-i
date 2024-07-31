@@ -3,7 +3,7 @@
 import { Command as CommandPrimitive, useCommandState } from "cmdk"
 import { X } from "lucide-react"
 import * as React from "react"
-import { forwardRef, useEffect } from "react"
+import { forwardRef, useEffect, useRef } from "react"
 
 import { Badge } from "@/app/components/ui/badge"
 import {
@@ -18,11 +18,10 @@ export interface Option {
     value: string
     label: string
     disable?: boolean
-    /** fixed option that can't be removed. */
     fixed?: boolean
-    /** Group the options by providing key. */
     [key: string]: string | boolean | undefined
 }
+
 interface GroupOption {
     [key: string]: Option[]
 }
@@ -30,51 +29,28 @@ interface GroupOption {
 interface MultipleSelectorProps {
     value?: Option[]
     defaultOptions?: Option[]
-    /** manually controlled options */
     options?: Option[]
     placeholder?: string
-    /** Loading component. */
     loadingIndicator?: React.ReactNode
-    /** Empty component. */
     emptyIndicator?: React.ReactNode
-    /** Debounce time for async search. Only work with `onSearch`. */
     delay?: number
-    /**
-     * Only work with `onSearch` prop. Trigger search when `onFocus`.
-     * For example, when user click on the input, it will trigger the search to get initial options.
-     **/
     triggerSearchOnFocus?: boolean
-    /** async search */
     onSearch?: (value: string) => Promise<Option[]>
     onChange?: (options: Option[]) => void
-    /** Limit the maximum number of selected options. */
     maxSelected?: number
-    /** When the number of selected options exceeds the limit, the onMaxSelected will be called. */
     onMaxSelected?: (maxLimit: number) => void
-    /** Hide the placeholder when there are options selected. */
     hidePlaceholderWhenSelected?: boolean
     disabled?: boolean
-    /** Group the options base on provided key. */
     groupBy?: string
     className?: string
     badgeClassName?: string
-    /**
-     * First item selected is a default behavior by cmdk. That is why the default is true.
-     * This is a workaround solution by add a dummy item.
-     *
-     * @reference: https://github.com/pacocoursey/cmdk/issues/171
-     */
     selectFirstItem?: boolean
-    /** Allow user to create option when there is no option matched. */
     creatable?: boolean
-    /** Props of `Command` */
     commandProps?: React.ComponentPropsWithoutRef<typeof Command>
-    /** Props of `CommandInput` */
     inputProps?: Omit<
         React.ComponentPropsWithoutRef<typeof CommandPrimitive.Input>,
         "value" | "placeholder" | "disabled"
     >
-    /** hide the clear all button. */
     hideClearAllButton?: boolean
 }
 
@@ -88,7 +64,6 @@ export function useDebounce<T>(value: T, delay?: number): T {
 
     useEffect(() => {
         const timer = setTimeout(() => setDebouncedValue(value), delay || 500)
-
         return () => {
             clearTimeout(timer)
         }
@@ -98,14 +73,8 @@ export function useDebounce<T>(value: T, delay?: number): T {
 }
 
 function transToGroupOption(options: Option[], groupBy?: string) {
-    if (options.length === 0) {
-        return {}
-    }
-    if (!groupBy) {
-        return {
-            "": options,
-        }
-    }
+    if (options.length === 0) return {}
+    if (!groupBy) return { "": options }
 
     const groupOption: GroupOption = {}
     options.forEach((option) => {
@@ -120,7 +89,6 @@ function transToGroupOption(options: Option[], groupBy?: string) {
 
 function removePickedOption(groupOption: GroupOption, picked: Option[]) {
     const cloneOption = JSON.parse(JSON.stringify(groupOption)) as GroupOption
-
     for (const [key, value] of Object.entries(cloneOption)) {
         cloneOption[key] = value.filter(
             (val) => !picked.find((p) => p.value === val.value)
@@ -142,18 +110,11 @@ function isOptionsExist(groupOption: GroupOption, targetOption: Option[]) {
     return false
 }
 
-/**
- * The `CommandEmpty` of shadcn/ui will cause the cmdk empty not rendering correctly.
- * So we create one and copy the `Empty` implementation from `cmdk`.
- *
- * @reference: https://github.com/hsuanyi-chou/shadcn-ui-expansions/issues/34#issuecomment-1949561607
- **/
 const CommandEmpty = forwardRef<
     HTMLDivElement,
     React.ComponentProps<typeof CommandPrimitive.Empty>
 >(({ className, ...props }, forwardedRef) => {
     const render = useCommandState((state) => state.filtered.count === 0)
-
     if (!render) return null
 
     return (
@@ -202,7 +163,6 @@ const MultipleSelector = React.forwardRef<
     ) => {
         const inputRef = React.useRef<HTMLInputElement>(null)
         const [open, setOpen] = React.useState(false)
-        const mouseOn = React.useRef<boolean>(false)
         const [isLoading, setIsLoading] = React.useState(false)
 
         const [selected, setSelected] = React.useState<Option[]>(value || [])
@@ -229,8 +189,11 @@ const MultipleSelector = React.forwardRef<
                 )
                 setSelected(newOptions)
                 onChange?.(newOptions)
+                if (newOptions.length < maxSelected) {
+                    setOpen(true)
+                }
             },
-            [onChange, selected]
+            [onChange, selected, maxSelected]
         )
 
         const handleKeyDown = React.useCallback(
@@ -241,13 +204,11 @@ const MultipleSelector = React.forwardRef<
                         if (input.value === "" && selected.length > 0) {
                             const lastSelectOption =
                                 selected[selected.length - 1]
-                            // If last item is fixed, we should not remove it.
                             if (!lastSelectOption.fixed) {
                                 handleUnselect(selected[selected.length - 1])
                             }
                         }
                     }
-                    // This is not a default behavior of the <input /> field
                     if (e.key === "Escape") {
                         input.blur()
                     }
@@ -263,10 +224,8 @@ const MultipleSelector = React.forwardRef<
         }, [value])
 
         useEffect(() => {
-            /** If `onSearch` is provided, do not trigger options updated. */
-            if (!arrayOptions || onSearch) {
-                return
-            }
+            if (!arrayOptions || onSearch) return
+
             const newOption = transToGroupOption(arrayOptions || [], groupBy)
             if (JSON.stringify(newOption) !== JSON.stringify(options)) {
                 setOptions(newOption)
@@ -283,18 +242,15 @@ const MultipleSelector = React.forwardRef<
 
             const exec = async () => {
                 if (!onSearch || !open) return
-
                 if (triggerSearchOnFocus) {
                     await doSearch()
                 }
-
                 if (debouncedSearchTerm) {
                     await doSearch()
                 }
             }
 
             void exec()
-            // eslint-disable-next-line react-hooks/exhaustive-deps
         }, [debouncedSearchTerm, groupBy, open, triggerSearchOnFocus])
 
         const CreatableItem = () => {
@@ -334,12 +290,9 @@ const MultipleSelector = React.forwardRef<
                 </CommandItem>
             )
 
-            // For normal creatable
             if (!onSearch && inputValue.length > 0) {
                 return Item
             }
-
-            // For async search creatable. avoid showing creatable item before loading at first.
             if (onSearch && debouncedSearchTerm.length > 0 && !isLoading) {
                 return Item
             }
@@ -350,7 +303,6 @@ const MultipleSelector = React.forwardRef<
         const EmptyItem = React.useCallback(() => {
             if (!emptyIndicator) return undefined
 
-            // For async search that showing emptyIndicator
             if (onSearch && !creatable && Object.keys(options).length === 0) {
                 return (
                     <CommandItem value="-" disabled>
@@ -367,12 +319,10 @@ const MultipleSelector = React.forwardRef<
             [options, selected]
         )
 
-        /** Avoid Creatable Selector freezing or lagging when paste a long string. */
         const commandFilter = React.useCallback(() => {
             if (commandProps?.filter) {
                 return commandProps.filter
             }
-
             if (creatable) {
                 return (value: string, search: string) => {
                     return value.toLowerCase().includes(search.toLowerCase())
@@ -380,7 +330,6 @@ const MultipleSelector = React.forwardRef<
                         : -1
                 }
             }
-            // Using default filter in `cmdk`. We don't have to provide it.
             return undefined
         }, [creatable, commandProps?.filter])
 
@@ -399,7 +348,7 @@ const MultipleSelector = React.forwardRef<
                     commandProps?.shouldFilter !== undefined
                         ? commandProps.shouldFilter
                         : !onSearch
-                } // When onSearch is provided, we don't want to filter the options. You can still override it.
+                }
                 filter={commandFilter()}
             >
                 <div
@@ -414,45 +363,44 @@ const MultipleSelector = React.forwardRef<
                     onClick={() => {
                         if (disabled) return
                         inputRef.current?.focus()
+                        if (selected.length < maxSelected) {
+                            setOpen(true)
+                        }
                     }}
                 >
                     <div className="relative flex flex-wrap gap-1">
-                        {selected.map((option) => {
-                            return (
-                                <Badge
-                                    key={option.value}
+                        {selected.map((option) => (
+                            <Badge
+                                key={option.value}
+                                className={cn(
+                                    "data-[disabled]:bg-muted-foreground data-[disabled]:text-muted data-[disabled]:hover:bg-muted-foreground",
+                                    "data-[fixed]:bg-muted-foreground data-[fixed]:text-muted data-[fixed]:hover:bg-muted-foreground",
+                                    badgeClassName
+                                )}
+                                data-fixed={option.fixed}
+                                data-disabled={disabled || undefined}
+                            >
+                                {option.label}
+                                <button
                                     className={cn(
-                                        "data-[disabled]:bg-muted-foreground data-[disabled]:text-muted data-[disabled]:hover:bg-muted-foreground",
-                                        "data-[fixed]:bg-muted-foreground data-[fixed]:text-muted data-[fixed]:hover:bg-muted-foreground",
-                                        badgeClassName
+                                        "ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2",
+                                        (disabled || option.fixed) && "hidden"
                                     )}
-                                    data-fixed={option.fixed}
-                                    data-disabled={disabled || undefined}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                            handleUnselect(option)
+                                        }
+                                    }}
+                                    onMouseDown={(e) => {
+                                        e.preventDefault()
+                                        e.stopPropagation()
+                                    }}
+                                    onClick={() => handleUnselect(option)}
                                 >
-                                    {option.label}
-                                    <button
-                                        className={cn(
-                                            "ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2",
-                                            (disabled || option.fixed) &&
-                                                "hidden"
-                                        )}
-                                        onKeyDown={(e) => {
-                                            if (e.key === "Enter") {
-                                                handleUnselect(option)
-                                            }
-                                        }}
-                                        onMouseDown={(e) => {
-                                            e.preventDefault()
-                                            e.stopPropagation()
-                                        }}
-                                        onClick={() => handleUnselect(option)}
-                                    >
-                                        <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                                    </button>
-                                </Badge>
-                            )
-                        })}
-                        {/* Avoid having the "Search" Icon */}
+                                    <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                                </button>
+                            </Badge>
+                        ))}
                         <CommandPrimitive.Input
                             {...inputProps}
                             ref={inputRef}
@@ -463,13 +411,13 @@ const MultipleSelector = React.forwardRef<
                                 inputProps?.onValueChange?.(value)
                             }}
                             onBlur={(event) => {
-                                if (mouseOn.current === false) {
-                                    setOpen(false)
-                                }
+                                setOpen(false)
                                 inputProps?.onBlur?.(event)
                             }}
                             onFocus={(event) => {
-                                setOpen(true)
+                                if (selected.length < maxSelected) {
+                                    setOpen(true)
+                                }
                                 triggerSearchOnFocus &&
                                     onSearch?.(debouncedSearchTerm)
                                 inputProps?.onFocus?.(event)
@@ -495,6 +443,12 @@ const MultipleSelector = React.forwardRef<
                             onClick={() => {
                                 setSelected(selected.filter((s) => s.fixed))
                                 onChange?.(selected.filter((s) => s.fixed))
+                                if (
+                                    selected.filter((s) => s.fixed).length <
+                                    maxSelected
+                                ) {
+                                    setOpen(true)
+                                }
                             }}
                             className={cn(
                                 "absolute right-0 h-6 w-6 p-0",
@@ -512,18 +466,7 @@ const MultipleSelector = React.forwardRef<
                 </div>
                 <div className="relative">
                     {open && (
-                        <CommandList
-                            className="absolute top-1 z-10 w-full rounded-md border bg-popover text-popover-foreground shadow-md outline-none animate-in"
-                            onMouseLeave={() => {
-                                mouseOn.current = false
-                            }}
-                            onMouseEnter={() => {
-                                mouseOn.current = true
-                            }}
-                            onMouseUp={() => {
-                                inputRef.current?.focus()
-                            }}
-                        >
+                        <CommandList className="absolute top-1 z-10 w-full rounded-md border bg-popover text-popover-foreground shadow-md outline-none animate-in">
                             {isLoading ? (
                                 <>{loadingIndicator}</>
                             ) : (
@@ -544,59 +487,61 @@ const MultipleSelector = React.forwardRef<
                                                 className="h-full overflow-auto"
                                             >
                                                 <>
-                                                    {dropdowns.map((option) => {
-                                                        return (
-                                                            <CommandItem
-                                                                key={
-                                                                    option.value
-                                                                }
-                                                                value={
-                                                                    option.value
-                                                                }
-                                                                disabled={
-                                                                    option.disable
-                                                                }
-                                                                onMouseDown={(
-                                                                    e
-                                                                ) => {
-                                                                    e.preventDefault()
-                                                                    e.stopPropagation()
-                                                                }}
-                                                                onSelect={() => {
-                                                                    if (
-                                                                        selected.length >=
-                                                                        maxSelected
-                                                                    ) {
-                                                                        onMaxSelected?.(
-                                                                            selected.length
-                                                                        )
-                                                                        return
-                                                                    }
-                                                                    setInputValue(
-                                                                        ""
+                                                    {dropdowns.map((option) => (
+                                                        <CommandItem
+                                                            key={option.value}
+                                                            value={option.value}
+                                                            disabled={
+                                                                option.disable
+                                                            }
+                                                            onMouseDown={(
+                                                                e
+                                                            ) => {
+                                                                e.preventDefault()
+                                                                e.stopPropagation()
+                                                            }}
+                                                            onSelect={() => {
+                                                                if (
+                                                                    selected.length >=
+                                                                    maxSelected
+                                                                ) {
+                                                                    onMaxSelected?.(
+                                                                        selected.length
                                                                     )
-                                                                    const newOptions =
-                                                                        [
-                                                                            ...selected,
-                                                                            option,
-                                                                        ]
-                                                                    setSelected(
-                                                                        newOptions
+                                                                    return
+                                                                }
+                                                                setInputValue(
+                                                                    ""
+                                                                )
+                                                                const newOptions =
+                                                                    [
+                                                                        ...selected,
+                                                                        option,
+                                                                    ]
+                                                                setSelected(
+                                                                    newOptions
+                                                                )
+                                                                onChange?.(
+                                                                    newOptions
+                                                                )
+                                                                if (
+                                                                    newOptions.length >=
+                                                                    maxSelected
+                                                                ) {
+                                                                    setOpen(
+                                                                        false
                                                                     )
-                                                                    onChange?.(
-                                                                        newOptions
-                                                                    )
-                                                                }}
-                                                                className={cn(
-                                                                    "cursor-pointer",
-                                                                    option.disable &&
-                                                                        "cursor-default text-muted-foreground"
-                                                                )}
-                                                            >
-                                                                {option.label}
-                                                            </CommandItem>
-                                                        )
-                                                    })}
+                                                                }
+                                                            }}
+                                                            className={cn(
+                                                                "cursor-pointer",
+                                                                option.disable &&
+                                                                    "cursor-default text-muted-foreground"
+                                                            )}
+                                                        >
+                                                            {option.label}
+                                                        </CommandItem>
+                                                    ))}
                                                 </>
                                             </CommandGroup>
                                         )
