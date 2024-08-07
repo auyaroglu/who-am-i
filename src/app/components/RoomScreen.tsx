@@ -1,77 +1,58 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
-import { Room, User } from "@/app/shared-types"
+import { User, RoomScreenProps } from "@/app/shared-types"
 import RoomForm from "@/app/components/forms/RoomForm"
 import SocialInvite from "@/app/components/SocialInvite"
-import { useToast } from "@/app/components/ui/use-toast"
-import {
-    updateUserReadyStatus,
-    leaveRoom,
-} from "@/app/lib/actions/room.actions"
 import { useRouter } from "next/navigation"
+import useSocket from "@/hooks/useSocket"
+import {
+    handlePlayerCountChange,
+    handleReadyToggle,
+    handleLeaveRoom,
+    handleStartGame,
+} from "@/app/utilities/roomHandlers"
 
-const RoomScreen: React.FC<{ roomData: Room; userId: string }> = ({
-    roomData,
-    userId,
-}) => {
-    const { toast } = useToast()
+const RoomScreen: React.FC<RoomScreenProps> = ({ roomData, userId }) => {
     const router = useRouter()
     const [users, setUsers] = useState<User[]>(roomData.users)
     const currentUser = users.find((u) => u.id === userId) || null
     const playerCount = parseInt(roomData.settings.playerCount, 10)
 
+    const socketUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || ""
+    const socket = useSocket(socketUrl)
+
+    useEffect(() => {
+        if (socket && currentUser) {
+            const user = {
+                id: currentUser.id,
+                nickname: currentUser.nickname,
+                isAdmin: currentUser.isAdmin,
+                isReady: currentUser.isReady,
+            }
+
+            socket.emit("joinRoom", roomData.roomCode, userId, user)
+
+            socket.on("playerListUpdated", (updatedUsers: User[]) => {
+                console.log("Received playerListUpdated event:", updatedUsers)
+                setUsers(updatedUsers)
+            })
+
+            socket.on("disconnect", () => {
+                console.log("Socket disconnected")
+            })
+
+            return () => {
+                console.log(`Emitting leaveRoom event for user ${userId}`)
+                socket.emit("leaveRoom", roomData.roomCode, userId)
+                socket.off("playerListUpdated")
+            }
+        }
+    }, [socket, userId, roomData.roomCode])
+
     if (!currentUser) {
-        return <div>Kullanıcı bu odada bulunamadı.</div>
-    }
-
-    const handlePlayerCountChange = (newPlayerCount: string) => {
-        if (users.length > parseInt(newPlayerCount, 10)) {
-            toast({
-                title: "Hata",
-                description:
-                    "Mevcut oyuncu sayısı yeni ayarlanan değerden fazla.",
-                variant: "destructive",
-            })
-            return
-        }
-    }
-
-    const handleReadyToggle = async () => {
-        try {
-            const newIsReady = !currentUser.isReady
-            await updateUserReadyStatus(roomData.roomCode, userId, newIsReady)
-            setUsers((prevUsers) =>
-                prevUsers.map((user) =>
-                    user.id === userId ? { ...user, isReady: newIsReady } : user
-                )
-            )
-        } catch (error) {
-            toast({
-                title: "Hata",
-                description:
-                    "Hazır olma durumu güncellenirken bir hata oluştu.",
-                variant: "destructive",
-            })
-        }
-    }
-
-    const handleLeaveRoom = async () => {
-        try {
-            await leaveRoom(roomData.roomCode, userId)
-            router.push("/") // Anasayfaya yönlendir
-            toast({
-                title: "Başarılı",
-                description: "Odayı başarıyla terk ettiniz.",
-                variant: "success",
-            })
-        } catch (error) {
-            toast({
-                title: "Hata",
-                description: "Odayı terk ederken bir hata oluştu.",
-                variant: "destructive",
-            })
-        }
+        router.push("/")
+        return null
     }
 
     return (
@@ -79,8 +60,8 @@ const RoomScreen: React.FC<{ roomData: Room; userId: string }> = ({
             <div className="w-full max-w-2xl rounded-lg bg-white p-6 shadow-lg">
                 <SocialInvite roomCode={roomData.roomCode} />
                 <div className="mb-4 flex justify-between">
-                    <h2 className="text-lg font-bold">Oyuncu İsimleri</h2>
-                    <h2 className="text-lg font-bold">Hazır mı?</h2>
+                    <h2 className="text-lg font-bold">Player Names</h2>
+                    <h2 className="text-lg font-bold">Ready?</h2>
                 </div>
                 <ul className="mb-6">
                     {Array.from({ length: playerCount }).map((_, index) => {
@@ -99,7 +80,7 @@ const RoomScreen: React.FC<{ roomData: Room; userId: string }> = ({
                                 >
                                     {player
                                         ? player.nickname
-                                        : `${index + 1}. Oyuncu bekleniyor...`}
+                                        : `${index + 1}. Waiting for player...`}
                                 </span>
                                 <span
                                     className={`text-lg ${
@@ -122,32 +103,53 @@ const RoomScreen: React.FC<{ roomData: Room; userId: string }> = ({
                 <RoomForm
                     room={roomData}
                     isAdmin={currentUser.isAdmin}
-                    onPlayerCountChange={handlePlayerCountChange}
+                    onPlayerCountChange={(newPlayerCount) =>
+                        handlePlayerCountChange(newPlayerCount, users)
+                    }
                 />
 
                 <div className="flex justify-between">
                     <button
                         className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-700"
-                        onClick={handleLeaveRoom}
+                        onClick={() =>
+                            handleLeaveRoom(roomData, userId, () =>
+                                router.push("/")
+                            )
+                        }
                     >
-                        Ayrıl
+                        Leave
                     </button>
-                    <button
-                        className={`rounded px-4 py-2 text-white ${
-                            currentUser.isAdmin
-                                ? "bg-red-500 hover:bg-red-700"
-                                : currentUser.isReady
-                                  ? "bg-green-700 hover:bg-green-500"
-                                  : "bg-green-500 hover:bg-green-700"
-                        }`}
-                        onClick={handleReadyToggle}
-                    >
-                        {currentUser.isAdmin
-                            ? "Başlat"
-                            : currentUser.isReady
-                              ? "Hazır Değilim"
-                              : "Hazırım"}
-                    </button>
+                    {currentUser.isAdmin ? (
+                        <button
+                            className={`rounded px-4 py-2 text-white ${
+                                users.every((user) => user.isReady)
+                                    ? "bg-red-500 hover:bg-red-700"
+                                    : "bg-gray-500"
+                            }`}
+                            onClick={() => handleStartGame(users)}
+                            disabled={!users.every((user) => user.isReady)}
+                        >
+                            Start
+                        </button>
+                    ) : (
+                        <button
+                            className={`rounded px-4 py-2 text-white ${
+                                currentUser.isReady
+                                    ? "bg-green-700 hover:bg-green-500"
+                                    : "bg-green-500 hover:bg-green-700"
+                            }`}
+                            onClick={() =>
+                                handleReadyToggle(
+                                    roomData,
+                                    userId,
+                                    currentUser,
+                                    setUsers
+                                )
+                            }
+                        >
+                            {currentUser.isReady ? "Not Ready" : "Ready"}
+                        </button>
+                    )}
                 </div>
             </div>
         </div>

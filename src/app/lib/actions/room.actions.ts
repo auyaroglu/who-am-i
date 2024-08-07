@@ -62,30 +62,37 @@ export const joinRoom = async (
     categories: string[]
 ): Promise<{ roomCode: string; userId: string } | string> => {
     try {
+        // Fetch existing room data
         const existingRoom = await payload.find({
             collection: "rooms",
-            where: {
-                roomCode: {
-                    equals: roomCode,
-                },
-            },
+            where: { roomCode: { equals: roomCode } },
         })
 
+        // Check if the room exists
         if (existingRoom.docs.length > 0) {
             const room = existingRoom.docs[0] as unknown as Room
 
+            // Ensure the room data structure is correct
             if (!isRoom(room)) {
-                throw new Error("Mevcut oda verisi beklenen yapıda değil.")
+                throw new Error("Room data structure is not as expected.")
             }
 
+            // Ensure room.users is an array
+            if (!Array.isArray(room.users)) {
+                throw new Error("The 'users' property is not an array.")
+            }
+
+            // Check for duplicate nickname
             if (room.users.some((user) => user.nickname === nickname)) {
-                return "Aynı oda içerisinde ad zaten mevcut. Lütfen başka bir takma ad seçin."
+                return "The nickname is already in use in this room. Please choose another."
             }
 
+            // Check if the room has reached its player capacity
             if (room.users.length >= parseInt(room.settings.playerCount, 10)) {
-                return "Oda tamamen dolduğu için giriş yapamazsınız."
+                return "The room is full. You cannot join."
             }
 
+            // Update the user list
             const roomId = room.id
             const existingUsers = room.users.map((user) => ({
                 ...user,
@@ -99,6 +106,7 @@ export const joinRoom = async (
                 isReady: false,
             }
 
+            // Update the room with the new user
             const updatedRoom = (await payload.update({
                 collection: "rooms",
                 id: roomId,
@@ -112,12 +120,12 @@ export const joinRoom = async (
                 userId: updatedRoom.users[updatedRoom.users.length - 1].id!,
             }
         } else {
-            return "Bu kod ile oluşturulmuş oda bulunamadı."
+            return "No room found with the provided code."
         }
     } catch (error) {
-        console.error("Odaya katılırken hata oluştu:", error)
+        console.error("Error while joining the room:", error)
         throw new Error(
-            `Odaya katılırken hata oluştu: ${(error as Error).message}`
+            `Error while joining the room: ${(error as Error).message}`
         )
     }
 }
@@ -136,7 +144,7 @@ export const saveRoomData = async (
 
 export const getRoomData = async (roomCode: string): Promise<Room | null> => {
     try {
-        // Oda koduna göre mevcut oda verilerini getir
+        // Fetch room data by room code
         const result = await payload.find({
             collection: "rooms",
             where: {
@@ -146,23 +154,23 @@ export const getRoomData = async (roomCode: string): Promise<Room | null> => {
             },
         })
 
-        // Eğer oda verisi varsa ve uygun tipteyse geri döndür
         if (result.docs.length > 0) {
-            const room = result.docs[0] as unknown
+            const room = result.docs[0] as unknown as Room
 
-            if (isRoom(room)) {
-                return room as Room
-            } else {
-                console.error("Veri beklenen Room yapısına uymuyor.")
+            // Ensure the users field is an array
+            if (!Array.isArray(room.users)) {
+                room.users = []
             }
+
+            return room
         } else {
-            console.error("Oda bulunamadı.")
+            console.error("Room not found.")
         }
     } catch (error) {
-        console.error("Oda verisi alınırken hata oluştu:", error)
+        console.error("Error fetching room data:", error)
     }
 
-    // Oda verisi bulunamadığında veya hata durumunda null döndür
+    // Return null if no room data is found or an error occurs
     return null
 }
 

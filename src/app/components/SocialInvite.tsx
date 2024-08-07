@@ -1,10 +1,15 @@
 "use client"
 
-import React from "react"
+import React, { useEffect, useState } from "react"
 import { FaFacebook, FaTwitter, FaWhatsapp, FaLink } from "react-icons/fa"
 
 const SocialInvite: React.FC<{ roomCode: string }> = ({ roomCode }) => {
-    const roomUrl = `${window.location.origin}?roomCode=${roomCode}`
+    const [roomUrl, setRoomUrl] = useState<string>("")
+
+    useEffect(() => {
+        // Safe to access `window` here since useEffect only runs on the client
+        setRoomUrl(`${window.location.origin}?roomCode=${roomCode}`)
+    }, [roomCode])
 
     const handleCopyLink = () => {
         navigator.clipboard.writeText(roomUrl)

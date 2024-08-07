@@ -1,7 +1,3 @@
-// shared-types.ts
-/* tslint:disable */
-/* eslint-disable */
-
 export interface Category {
     id: string
     name: string
