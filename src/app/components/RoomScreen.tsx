@@ -18,8 +18,9 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomData, userId }) => {
     const { toast } = useToast()
     const router = useRouter()
     const [users, setUsers] = useState<User[]>(roomData.users)
+    const [settings, setSettings] = useState(roomData.settings)
     const currentUser = users.find((u) => u.id === userId) || null
-    const playerCount = parseInt(roomData.settings.playerCount, 10)
+    const playerCount = parseInt(settings.playerCount, 10)
 
     const socketUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || ""
     const socket = useSocket(socketUrl)
@@ -58,6 +59,12 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomData, userId }) => {
                 }
             )
 
+            socket.on("roomSettingsUpdated", (updatedRoom: Room) => {
+                console.log("Received roomSettingsUpdated event:", updatedRoom)
+                setSettings(updatedRoom.settings)
+                setUsers(updatedRoom.users)
+            })
+
             socket.on("disconnect", () => {
                 console.log("Socket disconnected")
             })
@@ -72,6 +79,7 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomData, userId }) => {
                 )
                 socket.off("playerListUpdated")
                 socket.off("readyStatusChanged")
+                socket.off("roomSettingsUpdated")
             }
         }
     }, [socket, userId, roomData.roomCode])
@@ -126,7 +134,7 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomData, userId }) => {
                 </ul>
 
                 <RoomForm
-                    room={roomData}
+                    room={{ ...roomData, settings }}
                     isAdmin={currentUser.isAdmin}
                     onPlayerCountChange={(newPlayerCount) =>
                         handlePlayerCountChange(newPlayerCount, users)

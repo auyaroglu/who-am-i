@@ -1,9 +1,14 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
-import { RoomFormProps, RoomSettings } from "@/app/shared-types"
+import { RoomFormProps } from "@/app/shared-types"
 import { useToast } from "@/app/components/ui/use-toast"
-import { updateRoomSettings } from "@/app/lib/actions/room.actions"
+import {
+    handlePlayerCountChange,
+    handleDurationChange,
+    handleRoundCountChange,
+} from "@/app/utilities/roomFormHandlers"
+import useSocket from "@/hooks/useSocket"
 
 const RoomForm: React.FC<RoomFormProps> = ({
     room,
@@ -17,46 +22,62 @@ const RoomForm: React.FC<RoomFormProps> = ({
     const [playerCount, setPlayerCount] = useState(room.settings.playerCount)
     const { toast } = useToast()
 
+    const socketUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || ""
+    const socket = useSocket(socketUrl)
+
     useEffect(() => {
         setDuration(room.settings.duration.toString())
         setRoundCount(room.settings.roundCount.toString())
         setPlayerCount(room.settings.playerCount)
     }, [room.settings])
 
-    const handlePlayerCountChangeInternal = async (newPlayerCount: string) => {
-        if (!isAdmin) return
-
-        const updatedSettings: RoomSettings = {
-            duration: Number(duration),
-            roundCount: Number(roundCount),
-            playerCount: newPlayerCount,
+    const handleDurationChangeWithSocket = async (newDuration: string) => {
+        await handleDurationChange(
+            room.roomCode,
+            newDuration,
+            playerCount,
+            roundCount,
+            setDuration
+        )
+        if (socket) {
+            socket.emit("roomSettingsUpdated", {
+                ...room.settings,
+                duration: Number(newDuration),
+            })
         }
+    }
 
-        try {
-            const result = await updateRoomSettings(
-                room.roomCode,
-                updatedSettings
-            )
-            if (result === "success") {
-                setPlayerCount(newPlayerCount)
-                onPlayerCountChange(newPlayerCount)
-                toast({
-                    title: "Başarılı",
-                    description: "Oda ayarları başarıyla güncellendi.",
-                    variant: "success",
-                })
-            } else {
-                toast({
-                    title: "Hata",
-                    description: result,
-                    variant: "destructive",
-                })
-            }
-        } catch (error) {
-            toast({
-                title: "Hata",
-                description: "Oda ayarları güncellenirken bir hata oluştu.",
-                variant: "destructive",
+    const handleRoundCountChangeWithSocket = async (newRoundCount: string) => {
+        await handleRoundCountChange(
+            room.roomCode,
+            newRoundCount,
+            duration,
+            playerCount,
+            setRoundCount
+        )
+        if (socket) {
+            socket.emit("roomSettingsUpdated", {
+                ...room.settings,
+                roundCount: Number(newRoundCount),
+            })
+        }
+    }
+
+    const handlePlayerCountChangeWithSocket = async (
+        newPlayerCount: string
+    ) => {
+        await handlePlayerCountChange(
+            room.roomCode,
+            newPlayerCount,
+            duration,
+            roundCount,
+            setPlayerCount,
+            onPlayerCountChange
+        )
+        if (socket) {
+            socket.emit("roomSettingsUpdated", {
+                ...room.settings,
+                playerCount: newPlayerCount,
             })
         }
     }
@@ -64,45 +85,49 @@ const RoomForm: React.FC<RoomFormProps> = ({
     return (
         <div className="mb-6">
             <h3 className="mb-2 text-center text-lg font-semibold">
-                Oda Ayarları
+                Room Settings
             </h3>
             <div className="space-y-4">
                 <div className="flex items-center justify-between">
                     <label htmlFor="timer" className="text-sm font-medium">
-                        Süre
+                        Timer
                     </label>
                     {isAdmin ? (
                         <select
                             id="timer"
                             className="block w-2/3 rounded border bg-white p-2"
                             value={duration}
-                            onChange={(e) => setDuration(e.target.value)}
+                            onChange={(e) =>
+                                handleDurationChangeWithSocket(e.target.value)
+                            }
                         >
-                            <option value="30">30 saniye</option>
-                            <option value="45">45 saniye</option>
-                            <option value="60">60 saniye</option>
+                            <option value="30">30 seconds</option>
+                            <option value="45">45 seconds</option>
+                            <option value="60">60 seconds</option>
                         </select>
                     ) : (
-                        <span>{duration} saniye</span>
+                        <span>{duration} seconds</span>
                     )}
                 </div>
                 <div className="flex items-center justify-between">
                     <label htmlFor="turns" className="text-sm font-medium">
-                        Turlar
+                        Rounds
                     </label>
                     {isAdmin ? (
                         <select
                             id="turns"
                             className="block w-2/3 rounded border bg-white p-2"
                             value={roundCount}
-                            onChange={(e) => setRoundCount(e.target.value)}
+                            onChange={(e) =>
+                                handleRoundCountChangeWithSocket(e.target.value)
+                            }
                         >
-                            <option value="10">10 tur</option>
-                            <option value="15">15 tur</option>
-                            <option value="20">20 tur</option>
+                            <option value="10">10 rounds</option>
+                            <option value="15">15 rounds</option>
+                            <option value="20">20 rounds</option>
                         </select>
                     ) : (
-                        <span>{roundCount} tur</span>
+                        <span>{roundCount} rounds</span>
                     )}
                 </div>
                 <div className="flex items-center justify-between">
@@ -110,7 +135,7 @@ const RoomForm: React.FC<RoomFormProps> = ({
                         htmlFor="playerCount"
                         className="text-sm font-medium"
                     >
-                        Oyuncu Sayısı
+                        Player Count
                     </label>
                     {isAdmin ? (
                         <select
@@ -118,16 +143,18 @@ const RoomForm: React.FC<RoomFormProps> = ({
                             className="block w-2/3 rounded border bg-white p-2"
                             value={playerCount}
                             onChange={(e) =>
-                                handlePlayerCountChangeInternal(e.target.value)
+                                handlePlayerCountChangeWithSocket(
+                                    e.target.value
+                                )
                             }
                         >
-                            <option value="2">2 Oyuncu</option>
-                            <option value="4">4 Oyuncu</option>
-                            <option value="6">6 Oyuncu</option>
-                            <option value="8">8 Oyuncu</option>
+                            <option value="2">2 Players</option>
+                            <option value="4">4 Players</option>
+                            <option value="6">6 Players</option>
+                            <option value="8">8 Players</option>
                         </select>
                     ) : (
-                        <span>{playerCount} oyuncu</span>
+                        <span>{playerCount} players</span>
                     )}
                 </div>
             </div>
