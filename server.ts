@@ -7,7 +7,7 @@ import {
     leaveRoomHandler,
 } from "@/websocket/handlers/roomHandler"
 import { connectToDatabase } from "@/websocket/database"
-import { User } from "@/app/shared-types"
+import { User } from "@/app/shared-types" // Import User from shared-types
 
 dotenv.config()
 

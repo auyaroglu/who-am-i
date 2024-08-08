@@ -1,9 +1,10 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
-import { User, RoomScreenProps } from "@/app/shared-types"
+import { Room, User, RoomScreenProps } from "@/app/shared-types"
 import RoomForm from "@/app/components/forms/RoomForm"
 import SocialInvite from "@/app/components/SocialInvite"
+import { useToast } from "@/app/components/ui/use-toast"
 import { useRouter } from "next/navigation"
 import useSocket from "@/hooks/useSocket"
 import {
@@ -14,6 +15,7 @@ import {
 } from "@/app/utilities/roomHandlers"
 
 const RoomScreen: React.FC<RoomScreenProps> = ({ roomData, userId }) => {
+    const { toast } = useToast()
     const router = useRouter()
     const [users, setUsers] = useState<User[]>(roomData.users)
     const currentUser = users.find((u) => u.id === userId) || null
@@ -23,6 +25,10 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomData, userId }) => {
     const socket = useSocket(socketUrl)
 
     useEffect(() => {
+        console.log(`Socket URL: ${socketUrl}`)
+        console.log(`Socket instance:`, socket)
+        console.log(`Current User:`, currentUser)
+
         if (socket && currentUser) {
             const user = {
                 id: currentUser.id,
@@ -31,6 +37,7 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomData, userId }) => {
                 isReady: currentUser.isReady,
             }
 
+            console.log(`Emitting joinRoom event for user ${userId}`)
             socket.emit("joinRoom", roomData.roomCode, userId, user)
 
             socket.on("playerListUpdated", (updatedUsers: User[]) => {
@@ -43,16 +50,20 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomData, userId }) => {
             })
 
             return () => {
-                console.log(`Emitting leaveRoom event for user ${userId}`)
-                socket.emit("leaveRoom", roomData.roomCode, userId)
+                console.log(`Socket connected: ${socket.connected}`)
+                handleLeaveRoom(
+                    roomData,
+                    userId,
+                    () => router.push("/"),
+                    socket
+                )
                 socket.off("playerListUpdated")
             }
         }
     }, [socket, userId, roomData.roomCode])
 
     if (!currentUser) {
-        router.push("/")
-        return null
+        return <div>User not found in this room.</div>
     }
 
     return (
@@ -112,8 +123,12 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomData, userId }) => {
                     <button
                         className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-700"
                         onClick={() =>
-                            handleLeaveRoom(roomData, userId, () =>
-                                router.push("/")
+                            socket &&
+                            handleLeaveRoom(
+                                roomData,
+                                userId,
+                                () => router.push("/"),
+                                socket
                             )
                         }
                     >

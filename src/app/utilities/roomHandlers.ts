@@ -4,7 +4,9 @@ import {
     leaveRoom,
 } from "@/app/lib/actions/room.actions"
 import { toast } from "@/app/components/ui/use-toast"
+import { Socket } from "socket.io-client"
 
+// Adjust the handleLeaveRoom function to take an optional socket as an argument
 export const handlePlayerCountChange = (
     newPlayerCount: string,
     users: User[]
@@ -53,10 +55,14 @@ export const handleReadyToggle = async (
 export const handleLeaveRoom = async (
     roomData: Room,
     userId: string,
-    redirect: () => void
+    redirect: () => void,
+    socket?: Socket | null // Make socket optional
 ) => {
     try {
         await leaveRoom(roomData.roomCode, userId)
+        if (socket) {
+            socket.emit("leaveRoom", roomData.roomCode, userId) // Emit leaveRoom event if socket is not null
+        }
         redirect()
         toast({
             title: "Success",
