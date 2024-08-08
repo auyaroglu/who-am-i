@@ -45,6 +45,19 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomData, userId }) => {
                 setUsers(updatedUsers)
             })
 
+            socket.on(
+                "readyStatusChanged",
+                (changedUserId: string, isReady: boolean) => {
+                    setUsers((prevUsers) =>
+                        prevUsers.map((user) =>
+                            user.id === changedUserId
+                                ? { ...user, isReady }
+                                : user
+                        )
+                    )
+                }
+            )
+
             socket.on("disconnect", () => {
                 console.log("Socket disconnected")
             })
@@ -58,6 +71,7 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomData, userId }) => {
                     socket
                 )
                 socket.off("playerListUpdated")
+                socket.off("readyStatusChanged")
             }
         }
     }, [socket, userId, roomData.roomCode])
@@ -154,11 +168,13 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomData, userId }) => {
                                     : "bg-green-500 hover:bg-green-700"
                             }`}
                             onClick={() =>
+                                socket &&
                                 handleReadyToggle(
                                     roomData,
                                     userId,
                                     currentUser,
-                                    setUsers
+                                    setUsers,
+                                    socket
                                 )
                             }
                         >

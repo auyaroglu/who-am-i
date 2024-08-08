@@ -7,7 +7,7 @@ const useSocket = (url: string): Socket | null => {
     useEffect(() => {
         if (!url) return
 
-        const socketInstance = io(url, {
+        const socketInstance: Socket = io(url, {
             path: "/api/socket",
         })
 

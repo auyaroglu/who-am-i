@@ -1,13 +1,14 @@
 import express from "express"
 import { createServer } from "http"
-import { Server as SocketIOServer } from "socket.io"
+import { Server as SocketIOServer, Socket as IOSocket } from "socket.io"
 import dotenv from "dotenv"
 import {
     joinRoomHandler,
     leaveRoomHandler,
-} from "@/websocket/handlers/roomHandler"
+    handleReadyStatusChange,
+} from "@/websocket/handlers/roomHandler" // Adjusted import
 import { connectToDatabase } from "@/websocket/database"
-import { User } from "@/app/shared-types" // Import User from shared-types
+import { User } from "@/app/shared-types"
 
 dotenv.config()
 
@@ -24,7 +25,8 @@ const io = new SocketIOServer(httpServer, {
 
 const PORT = process.env.PORT || 4000
 
-io.on("connection", (socket) => {
+io.on("connection", (socket: IOSocket) => {
+    // Explicitly type the socket
     console.log("New client connected:", socket.id)
 
     socket.on("joinRoom", (roomCode: string, userId: string, user: User) => {
@@ -40,6 +42,16 @@ io.on("connection", (socket) => {
         )
         leaveRoomHandler(io, socket, roomCode, userId)
     })
+
+    socket.on(
+        "readyStatusChanged",
+        (roomCode: string, userId: string, isReady: boolean) => {
+            console.log(
+                `readyStatusChanged event received for user ${userId} in room ${roomCode}`
+            )
+            handleReadyStatusChange(io, socket, roomCode, userId, isReady)
+        }
+    )
 
     socket.on("disconnect", () => {
         console.log("Client disconnected:", socket.id)
