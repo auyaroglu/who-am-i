@@ -1,14 +1,14 @@
 import express from "express"
 import { createServer } from "http"
-import { Server as SocketIOServer, Socket as IOSocket } from "socket.io"
+import { Server as SocketIOServer } from "socket.io"
 import dotenv from "dotenv"
 import {
     joinRoomHandler,
     leaveRoomHandler,
+    handleRoomSettingsChange,
     handleReadyStatusChange,
-} from "@/websocket/handlers/roomHandler" // Adjusted import
+} from "@/websocket/handlers/roomHandler"
 import { connectToDatabase } from "@/websocket/database"
-import { User } from "@/app/shared-types"
 
 dotenv.config()
 
@@ -25,11 +25,10 @@ const io = new SocketIOServer(httpServer, {
 
 const PORT = process.env.PORT || 4000
 
-io.on("connection", (socket: IOSocket) => {
-    // Explicitly type the socket
+io.on("connection", (socket) => {
     console.log("New client connected:", socket.id)
 
-    socket.on("joinRoom", (roomCode: string, userId: string, user: User) => {
+    socket.on("joinRoom", (roomCode: string, userId: string, user) => {
         console.log(
             `joinRoom event received for user ${userId} and room ${roomCode}`
         )
@@ -43,15 +42,22 @@ io.on("connection", (socket: IOSocket) => {
         leaveRoomHandler(io, socket, roomCode, userId)
     })
 
-    socket.on(
-        "readyStatusChanged",
-        (roomCode: string, userId: string, isReady: boolean) => {
-            console.log(
-                `readyStatusChanged event received for user ${userId} in room ${roomCode}`
-            )
-            handleReadyStatusChange(io, socket, roomCode, userId, isReady)
-        }
-    )
+    socket.on("roomSettingsUpdated", ({ roomCode, settings }) => {
+        console.log("roomSettingsUpdated event received:", {
+            roomCode,
+            settings,
+        })
+        handleRoomSettingsChange(io, socket, roomCode, settings)
+    })
+
+    socket.on("readyStatusChanged", ({ roomCode, userId, isReady }) => {
+        console.log("readyStatusChanged event received:", {
+            roomCode,
+            userId,
+            isReady,
+        })
+        handleReadyStatusChange(io, socket, roomCode, userId, isReady)
+    })
 
     socket.on("disconnect", () => {
         console.log("Client disconnected:", socket.id)

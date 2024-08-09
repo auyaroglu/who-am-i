@@ -1,6 +1,9 @@
 import { Server as SocketIOServer, Socket as IOSocket } from "socket.io"
 import { User, RoomSettings } from "@/app/shared-types"
-import { getRoomData } from "@/websocket/services/roomService"
+import {
+    getRoomData,
+    updateUserReadyStatus,
+} from "@/websocket/services/roomService"
 
 export async function joinRoomHandler(
     io: SocketIOServer,
@@ -18,7 +21,6 @@ export async function joinRoomHandler(
             return
         }
 
-        // Check if the user is already in the room to prevent duplication
         const existingUser = roomData.users.find((u) => u.id === userId)
         if (!existingUser) {
             roomData.users.push(user)
@@ -64,29 +66,6 @@ export async function leaveRoomHandler(
     }
 }
 
-export const handleReadyStatusChange = async (
-    io: SocketIOServer,
-    socket: IOSocket,
-    roomCode: string,
-    userId: string,
-    isReady: boolean
-) => {
-    try {
-        const roomData = await getRoomData(roomCode)
-
-        if (!roomData) {
-            console.error(`Room ${roomCode} not found`)
-            socket.emit("error", "Room not found")
-            return
-        }
-
-        io.to(roomCode).emit("readyStatusChanged", userId, isReady)
-    } catch (error) {
-        console.error("Error in handleReadyStatusChange:", error)
-        socket.emit("error", "Could not update ready status")
-    }
-}
-
 export const handleRoomSettingsChange = async (
     io: SocketIOServer,
     socket: IOSocket,
@@ -106,8 +85,37 @@ export const handleRoomSettingsChange = async (
             ...roomData,
             settings: newSettings,
         })
+        console.log("Emitted roomSettingsUpdated event:", {
+            ...roomData,
+            settings: newSettings,
+        })
     } catch (error) {
         console.error("Error in handleRoomSettingsChange:", error)
         socket.emit("error", "Could not update room settings")
+    }
+}
+
+export const handleReadyStatusChange = async (
+    io: SocketIOServer,
+    socket: IOSocket,
+    roomCode: string,
+    userId: string,
+    isReady: boolean
+) => {
+    try {
+        const roomData = await getRoomData(roomCode)
+
+        if (!roomData) {
+            console.error(`Room ${roomCode} not found`)
+            socket.emit("error", "Room not found")
+            return
+        }
+
+        await updateUserReadyStatus(roomCode, userId, isReady)
+        io.to(roomCode).emit("readyStatusChanged", userId, isReady)
+        console.log("Emitted readyStatusChanged event:", userId, isReady)
+    } catch (error) {
+        console.error("Error in handleReadyStatusChange:", error)
+        socket.emit("error", "Could not update ready status")
     }
 }

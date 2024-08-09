@@ -207,7 +207,8 @@ export const leaveRoom = async (
     try {
         const room = await getRoomData(roomCode)
         if (!room) {
-            throw new Error("Oda bilgileri alınamadı")
+            return
+            // throw new Error("Oda bilgileri alınamadı")
         }
 
         const remainingUsers = room.users.filter((user) => user.id !== userId)

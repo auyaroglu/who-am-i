@@ -153,20 +153,52 @@ export async function leaveRoomHandler(
         const roomData = await getRoomData(roomCode)
 
         if (!roomData) {
-            console.error(`Room ${roomCode} not found`)
-            socket.emit("error", "Room not found")
-            return
+            // If roomData is null, it means the room has been deleted successfully
+            console.log(
+                `Room ${roomCode} has been deleted after the last user left.`
+            )
+            return false // No need to emit an error or proceed further
         }
 
         const updatedUsers = roomData.users.filter((user) => user.id !== userId)
 
-        socket.leave(roomCode) // Ensure socket is of type IOSocket
+        socket.leave(roomCode)
 
-        io.to(roomCode).emit("playerListUpdated", updatedUsers)
+        if (updatedUsers.length > 0) {
+            io.to(roomCode).emit("playerListUpdated", updatedUsers)
+            io.to(roomCode).emit("roomSettingsUpdated", {
+                ...roomData,
+                users: updatedUsers,
+            })
+        } else {
+            // No users left in the room, which means the room will be deleted
+            console.log(
+                `Room ${roomCode} will be deleted as there are no users left.`
+            )
+            // We avoid sending updates or errors here since this is expected behavior
+        }
+
         console.log(`User ${userId} left room ${roomCode}`)
     } catch (error) {
-        console.error("Error in leaveRoomHandler:", error)
-        socket.emit("error", "Could not leave room")
+        // Type guard to check if error is an instance of Error
+        if (error instanceof Error) {
+            if (error.message !== "Room not found") {
+                console.error("Error in leaveRoomHandler:", error)
+                socket.emit(
+                    "error",
+                    "An error occurred while leaving the room."
+                )
+            } else {
+                console.log("Room was not found, likely already deleted.")
+            }
+        } else {
+            // If error is not an instance of Error, log a generic message
+            console.error("An unexpected error occurred:", error)
+            socket.emit(
+                "error",
+                "An unexpected error occurred while leaving the room."
+            )
+        }
     }
 }
 

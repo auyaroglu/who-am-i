@@ -88,6 +88,37 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomData, userId }) => {
         return <div>User not found in this room.</div>
     }
 
+    const renderPlayerList = () => {
+        return Array.from({ length: playerCount }).map((_, index) => {
+            const player = users[index]
+            return (
+                <li
+                    key={index}
+                    className="flex items-center justify-between border-b py-2"
+                >
+                    <span
+                        className={`${
+                            currentUser.id === player?.id
+                                ? "text-blue-500"
+                                : "text-gray-800"
+                        }`}
+                    >
+                        {player
+                            ? player.nickname
+                            : `${index + 1}. Waiting for player...`}
+                    </span>
+                    <span
+                        className={`text-lg ${
+                            player?.isReady ? "text-green-500" : "text-red-500"
+                        }`}
+                    >
+                        {player ? (player.isReady ? "✔️" : "❌") : ""}
+                    </span>
+                </li>
+            )
+        })
+    }
+
     return (
         <div className="relative flex min-h-screen items-center justify-center bg-blue-cyan-gradient p-4">
             <div className="w-full max-w-2xl rounded-lg bg-white p-6 shadow-lg">
@@ -96,42 +127,7 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomData, userId }) => {
                     <h2 className="text-lg font-bold">Player Names</h2>
                     <h2 className="text-lg font-bold">Ready?</h2>
                 </div>
-                <ul className="mb-6">
-                    {Array.from({ length: playerCount }).map((_, index) => {
-                        const player = users[index]
-                        return (
-                            <li
-                                key={index}
-                                className="flex items-center justify-between border-b py-2"
-                            >
-                                <span
-                                    className={`${
-                                        currentUser.id === player?.id
-                                            ? "text-blue-500"
-                                            : "text-gray-800"
-                                    }`}
-                                >
-                                    {player
-                                        ? player.nickname
-                                        : `${index + 1}. Waiting for player...`}
-                                </span>
-                                <span
-                                    className={`text-lg ${
-                                        player?.isReady
-                                            ? "text-green-500"
-                                            : "text-red-500"
-                                    }`}
-                                >
-                                    {player
-                                        ? player.isReady
-                                            ? "✔️"
-                                            : "❌"
-                                        : ""}
-                                </span>
-                            </li>
-                        )
-                    })}
-                </ul>
+                <ul className="mb-6">{renderPlayerList()}</ul>
 
                 <RoomForm
                     room={{ ...roomData, settings }}

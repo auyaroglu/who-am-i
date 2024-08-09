@@ -37,14 +37,9 @@ const RoomForm: React.FC<RoomFormProps> = ({
             newDuration,
             playerCount,
             roundCount,
-            setDuration
+            setDuration,
+            socket
         )
-        if (socket) {
-            socket.emit("roomSettingsUpdated", {
-                ...room.settings,
-                duration: Number(newDuration),
-            })
-        }
     }
 
     const handleRoundCountChangeWithSocket = async (newRoundCount: string) => {
@@ -53,14 +48,9 @@ const RoomForm: React.FC<RoomFormProps> = ({
             newRoundCount,
             duration,
             playerCount,
-            setRoundCount
+            setRoundCount,
+            socket
         )
-        if (socket) {
-            socket.emit("roomSettingsUpdated", {
-                ...room.settings,
-                roundCount: Number(newRoundCount),
-            })
-        }
     }
 
     const handlePlayerCountChangeWithSocket = async (
@@ -72,14 +62,9 @@ const RoomForm: React.FC<RoomFormProps> = ({
             duration,
             roundCount,
             setPlayerCount,
-            onPlayerCountChange
+            onPlayerCountChange,
+            socket
         )
-        if (socket) {
-            socket.emit("roomSettingsUpdated", {
-                ...room.settings,
-                playerCount: newPlayerCount,
-            })
-        }
     }
 
     return (
