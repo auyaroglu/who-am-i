@@ -1,5 +1,5 @@
 import { connectToDatabase } from "@/websocket/database"
-import { Room } from "@/app/shared-types"
+import { Room, User } from "@/app/shared-types"
 
 // Fetch room data by room code
 export const getRoomData = async (roomCode: string): Promise<Room | null> => {
@@ -53,6 +53,34 @@ export const removeUserFromRoom = async (
     } catch (error) {
         console.error(
             `Error removing user ${userId} from room ${roomCode}:`,
+            error
+        )
+        throw error
+    }
+}
+
+// Update user status in a room (e.g., promote to admin and mark as ready)
+export const updateUserStatusInRoom = async (
+    roomCode: string,
+    userId: string,
+    updates: Partial<User>
+): Promise<void> => {
+    try {
+        const db = await connectToDatabase()
+        const collection = db.collection("rooms")
+
+        await collection.updateOne(
+            { roomCode, "users.id": userId },
+            { $set: { "users.$": updates } }
+        )
+
+        console.log(
+            `User ${userId} in room ${roomCode} updated with:`,
+            JSON.stringify(updates)
+        )
+    } catch (error) {
+        console.error(
+            `Error updating user ${userId} in room ${roomCode}:`,
             error
         )
         throw error

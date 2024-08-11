@@ -205,49 +205,65 @@ export const leaveRoom = async (
     userId: string
 ): Promise<void> => {
     try {
-        const room = await getRoomData(roomCode)
-        if (!room) {
+        const result = await payload.find({
+            collection: "rooms",
+            where: {
+                roomCode: {
+                    equals: roomCode,
+                },
+            },
+        })
+
+        if (result.docs.length === 0) {
+            console.error(`Room ${roomCode} not found`)
             return
-            // throw new Error("Oda bilgileri alınamadı")
         }
 
-        const remainingUsers = room.users.filter((user) => user.id !== userId)
+        const roomDoc = result.docs[0]
 
-        if (remainingUsers.length > 0) {
-            let newUsers = remainingUsers
-            if (room.users.find((user) => user.id === userId)?.isAdmin) {
-                // Admin ayrılıyorsa yeni admin ataması yap
-                let adminAssigned = false
-                newUsers = remainingUsers.map((user, index) => {
-                    if (!adminAssigned && index === 0) {
-                        adminAssigned = true
-                        return { ...user, isAdmin: true, isReady: true } // Yeni admin ve hazır
-                    }
-                    return user
-                })
-            }
+        // Use isRoom utility function to verify the structure
+        if (!isRoom(roomDoc)) {
+            console.error(`Room ${roomCode} does not have a valid structure`)
+            return
+        }
 
-            // Kullanıcıları güncelle ve kategori ID'lerini düzelt
+        const room = roomDoc as Room
+
+        const updatedUsers = room.users.filter((user) => user.id !== userId)
+
+        if (
+            room.users.find((user) => user.id === userId)?.isAdmin &&
+            updatedUsers.length > 0
+        ) {
+            // Promote the next user to admin
+            updatedUsers[0].isAdmin = true
+            updatedUsers[0].isReady = true
+
+            console.log(
+                `User ${updatedUsers[0].id} is now the admin of room ${roomCode}`
+            )
+        }
+
+        if (updatedUsers.length > 0) {
+            // Update the room with the new list of users
             await payload.update({
                 collection: "rooms",
                 id: room.id,
                 data: {
-                    users: newUsers.map((user) => ({
-                        ...user,
-                        categories: extractCategoryIds(user.categories),
-                    })),
+                    users: updatedUsers,
                 },
             })
         } else {
-            // Eğer odada hiç kullanıcı kalmadıysa, odayı sil
+            // If there are no users left in the room, delete the room
             await payload.delete({
                 collection: "rooms",
                 id: room.id,
             })
+
+            console.log(`Room ${roomCode} deleted because it was empty`)
         }
     } catch (error) {
-        console.error("Odayı terk ederken hata oluştu:", error)
-        throw new Error("Odayı terk ederken bir hata oluştu.")
+        console.error("Error while leaving the room:", error)
     }
 }
 

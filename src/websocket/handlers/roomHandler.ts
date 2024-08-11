@@ -1,10 +1,22 @@
 import { Server as SocketIOServer, Socket as IOSocket } from "socket.io"
-import { User, RoomSettings } from "@/app/shared-types"
-import {
-    getRoomData,
-    deleteRoom,
-    removeUserFromRoom,
-} from "@/websocket/services/roomService"
+import { connectToDatabase } from "@/websocket/database"
+import { Room, RoomSettings, User } from "@/app/shared-types"
+
+// Store users who have disconnected temporarily
+const disconnectedUsers = new Map<string, NodeJS.Timeout>()
+
+// Function to get room data from the database
+async function getRoomData(roomCode: string): Promise<Room | null> {
+    try {
+        const db = await connectToDatabase()
+        const collection = db.collection("rooms")
+        const room = await collection.findOne({ roomCode })
+        return room as Room | null
+    } catch (error) {
+        console.error("Error fetching room data:", error)
+        return null
+    }
+}
 
 export async function joinRoomHandler(
     io: SocketIOServer,
@@ -14,6 +26,13 @@ export async function joinRoomHandler(
     user: User
 ) {
     try {
+        // If the user was temporarily disconnected, clear their removal timeout
+        if (disconnectedUsers.has(userId)) {
+            clearTimeout(disconnectedUsers.get(userId)!)
+            disconnectedUsers.delete(userId)
+            console.log(`User ${userId} rejoined room ${roomCode}`)
+        }
+
         const roomData = await getRoomData(roomCode)
 
         if (!roomData) {
@@ -46,7 +65,10 @@ export async function leaveRoomHandler(
     userId: string
 ) {
     try {
-        const roomData = await getRoomData(roomCode)
+        const db = await connectToDatabase()
+        const collection = db.collection("rooms")
+
+        const roomData = await collection.findOne({ roomCode })
 
         if (!roomData) {
             console.error(`Room ${roomCode} not found`)
@@ -54,15 +76,45 @@ export async function leaveRoomHandler(
             return
         }
 
-        // Remove the user from the room in the database
-        const userRemoved = await removeUserFromRoom(roomCode, userId)
-        if (!userRemoved) return
+        let updatedUsers = roomData.users.filter(
+            (user: User) => user.id !== userId
+        )
 
-        const updatedUsers = roomData.users.filter((user) => user.id !== userId)
+        // If the leaving user is the admin, promote the next user to admin
+        const leavingUser = roomData.users.find(
+            (user: User) => user.id === userId
+        )
+        if (leavingUser?.isAdmin && updatedUsers.length > 0) {
+            updatedUsers[0].isAdmin = true
+            updatedUsers[0].isReady = true
 
-        socket.leave(roomCode)
+            // Update the new admin's status in the database
+            await collection.updateOne(
+                { roomCode, "users.id": updatedUsers[0].id },
+                {
+                    $set: {
+                        "users.$.isAdmin": true,
+                        "users.$.isReady": true,
+                    },
+                }
+            )
+
+            console.log(
+                `User ${updatedUsers[0].id} is now the admin of room ${roomCode}`
+            )
+        }
 
         if (updatedUsers.length > 0) {
+            // Update the room with the new list of users in the database
+            await collection.updateOne(
+                { roomCode },
+                {
+                    $set: {
+                        users: updatedUsers,
+                    },
+                }
+            )
+
             io.to(roomCode).emit("playerListUpdated", updatedUsers)
             io.to(roomCode).emit("roomSettingsUpdated", {
                 ...roomData,
@@ -70,10 +122,11 @@ export async function leaveRoomHandler(
             })
         } else {
             // No users left in the room, delete the room from the database
-            await deleteRoom(roomCode)
+            await collection.deleteOne({ roomCode })
             console.log(`Room ${roomCode} deleted because it was empty`)
         }
 
+        socket.leave(roomCode)
         console.log(`User ${userId} left room ${roomCode}`)
     } catch (error) {
         console.error("Error in leaveRoomHandler:", error)
@@ -81,6 +134,7 @@ export async function leaveRoomHandler(
     }
 }
 
+// Handle room settings change
 export const handleRoomSettingsChange = async (
     io: SocketIOServer,
     socket: IOSocket,
@@ -106,6 +160,7 @@ export const handleRoomSettingsChange = async (
     }
 }
 
+// Handle ready status change
 export const handleReadyStatusChange = async (
     io: SocketIOServer,
     socket: IOSocket,
@@ -121,7 +176,7 @@ export const handleReadyStatusChange = async (
     }
 }
 
-// New function to handle disconnections
+// Handles user disconnections with a grace period for reconnection
 export const handleDisconnect = async (
     io: SocketIOServer,
     socket: IOSocket
@@ -130,7 +185,17 @@ export const handleDisconnect = async (
 
     if (roomCode && userId) {
         console.log(`Client disconnected: ${userId} from room: ${roomCode}`)
-        await leaveRoomHandler(io, socket, roomCode, userId)
+
+        // Set a grace period for the user to reconnect
+        const gracePeriod = 10000 // 10 seconds (you can adjust this)
+
+        const timeout = setTimeout(async () => {
+            await leaveRoomHandler(io, socket, roomCode, userId)
+            disconnectedUsers.delete(userId)
+        }, gracePeriod)
+
+        // Store the user's disconnect timeout
+        disconnectedUsers.set(userId, timeout)
     } else {
         console.log(
             "Client disconnected but no roomCode or userId found on socket"

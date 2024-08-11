@@ -78,15 +78,19 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomData, userId }) => {
             })
 
             return () => {
-                handleLeaveRoom(
-                    roomData,
-                    userId,
-                    () => router.push("/"),
-                    socket
-                )
-                socket.off("playerListUpdated")
-                socket.off("readyStatusChanged")
-                socket.off("roomSettingsUpdated")
+                if (socket) {
+                    // Notify other clients that this user is leaving
+                    socket.emit("leaveRoom", roomData.roomCode, userId)
+                    handleLeaveRoom(
+                        roomData,
+                        userId,
+                        () => router.push("/"),
+                        socket
+                    )
+                    socket.off("playerListUpdated")
+                    socket.off("readyStatusChanged")
+                    socket.off("roomSettingsUpdated")
+                }
             }
         }
     }, [socket, userId, roomData.roomCode])
@@ -127,15 +131,16 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomData, userId }) => {
                 <div className="flex justify-between">
                     <button
                         className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-700"
-                        onClick={() =>
-                            socket &&
+                        onClick={() => {
+                            // Notify WebSocket server and update client state
+                            socket?.emit("leaveRoom", roomData.roomCode, userId)
                             handleLeaveRoom(
                                 roomData,
                                 userId,
                                 () => router.push("/"),
                                 socket
                             )
-                        }
+                        }}
                     >
                         Leave
                     </button>

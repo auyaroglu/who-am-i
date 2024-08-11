@@ -30,33 +30,18 @@ io.on("connection", (socket) => {
     console.log("New client connected:", socket.id)
 
     socket.on("joinRoom", (roomCode: string, userId: string, user) => {
-        // console.log(
-        //     `joinRoom event received for user ${userId} and room ${roomCode}`
-        // )
         joinRoomHandler(io, socket, roomCode, userId, user)
     })
 
     socket.on("leaveRoom", (roomCode: string, userId: string) => {
-        // console.log(
-        //     `leaveRoom event received for user ${userId} and room ${roomCode}`
-        // )
         leaveRoomHandler(io, socket, roomCode, userId)
     })
 
     socket.on("roomSettingsUpdated", ({ roomCode, settings }) => {
-        // console.log("roomSettingsUpdated event received:", {
-        //     roomCode,
-        //     settings,
-        // })
         handleRoomSettingsChange(io, socket, roomCode, settings)
     })
 
     socket.on("readyStatusChanged", ({ roomCode, userId, isReady }) => {
-        // console.log("readyStatusChanged event received:", {
-        //     roomCode,
-        //     userId,
-        //     isReady,
-        // })
         handleReadyStatusChange(io, socket, roomCode, userId, isReady)
     })
 
