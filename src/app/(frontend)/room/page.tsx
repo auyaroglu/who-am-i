@@ -1,4 +1,4 @@
-import RoomScreen from "@/app/components/RoomScreen"
+import RoomScreen from "@/app/components/screens/RoomScreen"
 import { getRoomData } from "@/app/lib/actions/room.actions"
 import { Room } from "@/app/shared-types"
 

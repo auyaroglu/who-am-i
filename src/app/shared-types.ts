@@ -41,3 +41,9 @@ export interface RoomScreenProps {
     roomData: Room
     userId: string
 }
+
+export interface PlayerListProps {
+    players: User[]
+    currentUserId: string
+    playerCount: number
+}
