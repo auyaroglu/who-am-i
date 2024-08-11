@@ -8,13 +8,13 @@ import {
     handleLeaveRoom,
     handlePlayerCountChange,
     handleReadyToggle,
-    handleStartGame,
+    handleStartGame, // Assuming you have a handleStartGame function
 } from "@/app/utilities/roomHandlers"
 import PlayerList from "@/app/components/PlayerList"
 import RoomForm from "@/app/components/forms/RoomForm"
 import SocialInvite from "@/app/components/SocialInvite"
 import { useToast } from "@/app/components/ui/use-toast"
-import { getRoomData } from "@/app/lib/actions/room.actions" // Import the function to fetch room data
+import { getRoomData } from "@/app/lib/actions/room.actions"
 
 const RoomScreen: React.FC<RoomScreenProps> = ({ roomData, userId }) => {
     const { toast } = useToast()
@@ -35,28 +35,23 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomData, userId }) => {
                 isReady: currentUser.isReady,
             }
 
-            // Join the room
-            console.log(`Emitting joinRoom event for user ${userId}`)
+            // console.log(`Emitting joinRoom event for user ${userId}`)
             socket.emit("joinRoom", roomData.roomCode, userId, user)
 
-            // Listen for updates to the player list
             socket.on("playerListUpdated", (updatedUsers: User[]) => {
-                console.log("Received playerListUpdated event:", updatedUsers)
+                // console.log("Received playerListUpdated event:", updatedUsers)
                 setUsers(updatedUsers)
             })
 
-            // Listen for ready status changes
             socket.on(
                 "readyStatusChanged",
                 async ({ userId }: { userId: string }) => {
-                    console.log(
-                        `User ${userId} changed ready status, fetching updated room data`
-                    )
+                    // console.log(`User ${userId} changed ready status, fetching updated room data`)
 
                     try {
-                        const updatedRoom = await getRoomData(roomData.roomCode) // Fetch latest room data
+                        const updatedRoom = await getRoomData(roomData.roomCode)
                         if (updatedRoom) {
-                            setUsers(updatedRoom.users) // Update users state with latest data
+                            setUsers(updatedRoom.users)
                         }
                     } catch (error) {
                         console.error(
@@ -68,17 +63,16 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomData, userId }) => {
             )
 
             socket.on("roomSettingsUpdated", (updatedRoom: Room) => {
-                console.log("Received roomSettingsUpdated event:", updatedRoom)
+                // console.log("Received roomSettingsUpdated event:", updatedRoom)
                 setSettings(updatedRoom.settings)
                 setUsers(updatedRoom.users)
             })
 
             socket.on("disconnect", () => {
-                console.log("Socket disconnected")
+                // console.log("Socket disconnected")
             })
 
             return () => {
-                console.log(`Socket connected: ${socket.connected}`)
                 handleLeaveRoom(
                     roomData,
                     userId,
@@ -95,6 +89,12 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomData, userId }) => {
     if (!currentUser) {
         return <div>User not found in this room.</div>
     }
+
+    // Check if the room is full
+    const isRoomFull = users.length >= parseInt(settings.playerCount, 10)
+
+    // Check if all players are ready
+    const allPlayersReady = users.every((user) => user.isReady)
 
     return (
         <div className="relative flex min-h-screen items-center justify-center bg-blue-cyan-gradient p-4">
@@ -137,12 +137,12 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomData, userId }) => {
                     {currentUser.isAdmin ? (
                         <button
                             className={`rounded px-4 py-2 text-white ${
-                                users.every((user) => user.isReady)
+                                isRoomFull && allPlayersReady
                                     ? "bg-red-500 hover:bg-red-700"
                                     : "bg-gray-500"
                             }`}
                             onClick={() => handleStartGame(users)}
-                            disabled={!users.every((user) => user.isReady)}
+                            disabled={!isRoomFull || !allPlayersReady} // Button disabled unless room is full and all players are ready
                         >
                             Start
                         </button>

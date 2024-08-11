@@ -138,7 +138,7 @@ export async function joinRoomHandler(
         socket.join(roomCode) // Ensure socket is of type IOSocket
 
         io.to(roomCode).emit("playerListUpdated", roomData.users)
-        console.log(`User ${userId} joined room ${roomCode}`)
+        // console.log(`User ${userId} joined room ${roomCode}`)
     } catch (error) {
         console.error("Error in joinRoomHandler:", error)
         socket.emit("error", "Could not join room")
@@ -156,9 +156,7 @@ export async function leaveRoomHandler(
 
         if (!roomData) {
             // If roomData is null, it means the room has been deleted successfully
-            console.log(
-                `Room ${roomCode} has been deleted after the last user left.`
-            )
+            // console.log(`Room ${roomCode} has been deleted after the last user left.`)
             return false // No need to emit an error or proceed further
         }
 
@@ -174,13 +172,11 @@ export async function leaveRoomHandler(
             })
         } else {
             // No users left in the room, which means the room will be deleted
-            console.log(
-                `Room ${roomCode} will be deleted as there are no users left.`
-            )
+            // console.log(`Room ${roomCode} will be deleted as there are no users left.`)
             // We avoid sending updates or errors here since this is expected behavior
         }
 
-        console.log(`User ${userId} left room ${roomCode}`)
+        // console.log(`User ${userId} left room ${roomCode}`)
     } catch (error) {
         // Type guard to check if error is an instance of Error
         if (error instanceof Error) {
@@ -191,7 +187,7 @@ export async function leaveRoomHandler(
                     "An error occurred while leaving the room."
                 )
             } else {
-                console.log("Room was not found, likely already deleted.")
+                // console.log("Room was not found, likely already deleted.")
             }
         } else {
             // If error is not an instance of Error, log a generic message

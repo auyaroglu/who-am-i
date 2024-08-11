@@ -25,7 +25,7 @@ export async function joinRoomHandler(
 
         socket.join(roomCode)
         io.to(roomCode).emit("playerListUpdated", roomData.users)
-        console.log(`User ${userId} joined room ${roomCode}`)
+        // console.log(`User ${userId} joined room ${roomCode}`)
     } catch (error) {
         console.error("Error in joinRoomHandler:", error)
         socket.emit("error", "Could not join room")
@@ -82,10 +82,10 @@ export const handleRoomSettingsChange = async (
             ...roomData,
             settings: newSettings,
         })
-        console.log("Emitted roomSettingsUpdated event:", {
-            ...roomData,
-            settings: newSettings,
-        })
+        // console.log("Emitted roomSettingsUpdated event:", {
+        //     ...roomData,
+        //     settings: newSettings,
+        // })
     } catch (error) {
         console.error("Error in handleRoomSettingsChange:", error)
         socket.emit("error", "Could not update room settings")
@@ -101,11 +101,11 @@ export const handleReadyStatusChange = async (
 ) => {
     try {
         // Ensure the event is being emitted with correct data
-        console.log("readyStatusChanged event received:", {
-            roomCode,
-            userId,
-            isReady,
-        })
+        // console.log("readyStatusChanged event received:", {
+        //     roomCode,
+        //     userId,
+        //     isReady,
+        // })
 
         // Emit the event to all clients in the room
         io.to(roomCode).emit("readyStatusChanged", { userId, isReady })
