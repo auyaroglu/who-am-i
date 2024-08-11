@@ -1,6 +1,10 @@
 import { Server as SocketIOServer, Socket as IOSocket } from "socket.io"
 import { User, RoomSettings } from "@/app/shared-types"
-import { getRoomData } from "@/websocket/services/roomService"
+import {
+    getRoomData,
+    deleteRoom,
+    removeUserFromRoom,
+} from "@/websocket/services/roomService"
 
 export async function joinRoomHandler(
     io: SocketIOServer,
@@ -23,9 +27,12 @@ export async function joinRoomHandler(
             roomData.users.push(user)
         }
 
+        // Store roomCode and userId on the socket object
+        socket.data = { roomCode, userId }
+
         socket.join(roomCode)
         io.to(roomCode).emit("playerListUpdated", roomData.users)
-        // console.log(`User ${userId} joined room ${roomCode}`)
+        console.log(`User ${userId} joined room ${roomCode}`)
     } catch (error) {
         console.error("Error in joinRoomHandler:", error)
         socket.emit("error", "Could not join room")
@@ -47,15 +54,26 @@ export async function leaveRoomHandler(
             return
         }
 
+        // Remove the user from the room in the database
+        const userRemoved = await removeUserFromRoom(roomCode, userId)
+        if (!userRemoved) return
+
         const updatedUsers = roomData.users.filter((user) => user.id !== userId)
 
         socket.leave(roomCode)
 
-        io.to(roomCode).emit("playerListUpdated", updatedUsers)
-        io.to(roomCode).emit("roomSettingsUpdated", {
-            ...roomData,
-            users: updatedUsers,
-        })
+        if (updatedUsers.length > 0) {
+            io.to(roomCode).emit("playerListUpdated", updatedUsers)
+            io.to(roomCode).emit("roomSettingsUpdated", {
+                ...roomData,
+                users: updatedUsers,
+            })
+        } else {
+            // No users left in the room, delete the room from the database
+            await deleteRoom(roomCode)
+            console.log(`Room ${roomCode} deleted because it was empty`)
+        }
+
         console.log(`User ${userId} left room ${roomCode}`)
     } catch (error) {
         console.error("Error in leaveRoomHandler:", error)
@@ -82,10 +100,6 @@ export const handleRoomSettingsChange = async (
             ...roomData,
             settings: newSettings,
         })
-        // console.log("Emitted roomSettingsUpdated event:", {
-        //     ...roomData,
-        //     settings: newSettings,
-        // })
     } catch (error) {
         console.error("Error in handleRoomSettingsChange:", error)
         socket.emit("error", "Could not update room settings")
@@ -100,17 +114,26 @@ export const handleReadyStatusChange = async (
     isReady: boolean
 ) => {
     try {
-        // Ensure the event is being emitted with correct data
-        // console.log("readyStatusChanged event received:", {
-        //     roomCode,
-        //     userId,
-        //     isReady,
-        // })
-
-        // Emit the event to all clients in the room
         io.to(roomCode).emit("readyStatusChanged", { userId, isReady })
     } catch (error) {
         console.error("Error in handleReadyStatusChange:", error)
         socket.emit("error", "Could not update ready status")
+    }
+}
+
+// New function to handle disconnections
+export const handleDisconnect = async (
+    io: SocketIOServer,
+    socket: IOSocket
+) => {
+    const { roomCode, userId } = socket.data
+
+    if (roomCode && userId) {
+        console.log(`Client disconnected: ${userId} from room: ${roomCode}`)
+        await leaveRoomHandler(io, socket, roomCode, userId)
+    } else {
+        console.log(
+            "Client disconnected but no roomCode or userId found on socket"
+        )
     }
 }

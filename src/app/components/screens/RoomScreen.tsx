@@ -8,7 +8,7 @@ import {
     handleLeaveRoom,
     handlePlayerCountChange,
     handleReadyToggle,
-    handleStartGame, // Assuming you have a handleStartGame function
+    handleStartGame,
 } from "@/app/utilities/roomHandlers"
 import PlayerList from "@/app/components/PlayerList"
 import RoomForm from "@/app/components/forms/RoomForm"
@@ -35,18 +35,23 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomData, userId }) => {
                 isReady: currentUser.isReady,
             }
 
-            // console.log(`Emitting joinRoom event for user ${userId}`)
+            // Attach custom data to the socket instance
+            socket.data = { roomCode: roomData.roomCode, userId }
+
+            console.log(`Emitting joinRoom event for user ${userId}`)
             socket.emit("joinRoom", roomData.roomCode, userId, user)
 
             socket.on("playerListUpdated", (updatedUsers: User[]) => {
-                // console.log("Received playerListUpdated event:", updatedUsers)
+                console.log("Received playerListUpdated event:", updatedUsers)
                 setUsers(updatedUsers)
             })
 
             socket.on(
                 "readyStatusChanged",
                 async ({ userId }: { userId: string }) => {
-                    // console.log(`User ${userId} changed ready status, fetching updated room data`)
+                    console.log(
+                        `User ${userId} changed ready status, fetching updated room data`
+                    )
 
                     try {
                         const updatedRoom = await getRoomData(roomData.roomCode)
@@ -63,13 +68,13 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomData, userId }) => {
             )
 
             socket.on("roomSettingsUpdated", (updatedRoom: Room) => {
-                // console.log("Received roomSettingsUpdated event:", updatedRoom)
+                console.log("Received roomSettingsUpdated event:", updatedRoom)
                 setSettings(updatedRoom.settings)
                 setUsers(updatedRoom.users)
             })
 
             socket.on("disconnect", () => {
-                // console.log("Socket disconnected")
+                console.log("Socket disconnected")
             })
 
             return () => {

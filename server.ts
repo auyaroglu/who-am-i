@@ -7,6 +7,7 @@ import {
     leaveRoomHandler,
     handleRoomSettingsChange,
     handleReadyStatusChange,
+    handleDisconnect,
 } from "@/websocket/handlers/roomHandler"
 import { connectToDatabase } from "@/websocket/database"
 
@@ -60,6 +61,7 @@ io.on("connection", (socket) => {
     })
 
     socket.on("disconnect", () => {
+        handleDisconnect(io, socket)
         console.log("Client disconnected:", socket.id)
     })
 })
