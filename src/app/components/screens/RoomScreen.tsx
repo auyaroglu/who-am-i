@@ -1,19 +1,20 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
-import { Room, User, RoomScreenProps } from "@/app/shared-types"
-import RoomForm from "@/app/components/forms/RoomForm"
-import SocialInvite from "@/app/components/SocialInvite"
-import { useToast } from "@/app/components/ui/use-toast"
 import { useRouter } from "next/navigation"
 import useSocket from "@/hooks/useSocket"
+import { Room, User, RoomScreenProps } from "@/app/shared-types"
 import {
+    handleLeaveRoom,
     handlePlayerCountChange,
     handleReadyToggle,
-    handleLeaveRoom,
     handleStartGame,
 } from "@/app/utilities/roomHandlers"
 import PlayerList from "@/app/components/PlayerList"
+import RoomForm from "@/app/components/forms/RoomForm"
+import SocialInvite from "@/app/components/SocialInvite"
+import { useToast } from "@/app/components/ui/use-toast"
+import { getRoomData } from "@/app/lib/actions/room.actions" // Import the function to fetch room data
 
 const RoomScreen: React.FC<RoomScreenProps> = ({ roomData, userId }) => {
     const { toast } = useToast()
@@ -21,7 +22,6 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomData, userId }) => {
     const [users, setUsers] = useState<User[]>(roomData.users)
     const [settings, setSettings] = useState(roomData.settings)
     const currentUser = users.find((u) => u.id === userId) || null
-    const playerCount = parseInt(settings.playerCount, 10)
 
     const socketUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || ""
     const socket = useSocket(socketUrl)
@@ -35,24 +35,35 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomData, userId }) => {
                 isReady: currentUser.isReady,
             }
 
+            // Join the room
             console.log(`Emitting joinRoom event for user ${userId}`)
             socket.emit("joinRoom", roomData.roomCode, userId, user)
 
+            // Listen for updates to the player list
             socket.on("playerListUpdated", (updatedUsers: User[]) => {
                 console.log("Received playerListUpdated event:", updatedUsers)
                 setUsers(updatedUsers)
             })
 
+            // Listen for ready status changes
             socket.on(
                 "readyStatusChanged",
-                (changedUserId: string, isReady: boolean) => {
-                    setUsers((prevUsers) =>
-                        prevUsers.map((user) =>
-                            user.id === changedUserId
-                                ? { ...user, isReady }
-                                : user
-                        )
+                async ({ userId }: { userId: string }) => {
+                    console.log(
+                        `User ${userId} changed ready status, fetching updated room data`
                     )
+
+                    try {
+                        const updatedRoom = await getRoomData(roomData.roomCode) // Fetch latest room data
+                        if (updatedRoom) {
+                            setUsers(updatedRoom.users) // Update users state with latest data
+                        }
+                    } catch (error) {
+                        console.error(
+                            "Failed to fetch updated room data:",
+                            error
+                        )
+                    }
                 }
             )
 
@@ -97,7 +108,7 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomData, userId }) => {
                 <PlayerList
                     players={users}
                     currentUserId={userId}
-                    playerCount={playerCount}
+                    playerCount={parseInt(settings.playerCount, 10)}
                 />
 
                 <RoomForm

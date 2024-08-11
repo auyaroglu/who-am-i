@@ -1,9 +1,6 @@
 import { Server as SocketIOServer, Socket as IOSocket } from "socket.io"
 import { User, RoomSettings } from "@/app/shared-types"
-import {
-    getRoomData,
-    updateUserReadyStatus,
-} from "@/websocket/services/roomService"
+import { getRoomData } from "@/websocket/services/roomService"
 
 export async function joinRoomHandler(
     io: SocketIOServer,
@@ -103,17 +100,15 @@ export const handleReadyStatusChange = async (
     isReady: boolean
 ) => {
     try {
-        const roomData = await getRoomData(roomCode)
+        // Ensure the event is being emitted with correct data
+        console.log("readyStatusChanged event received:", {
+            roomCode,
+            userId,
+            isReady,
+        })
 
-        if (!roomData) {
-            console.error(`Room ${roomCode} not found`)
-            socket.emit("error", "Room not found")
-            return
-        }
-
-        await updateUserReadyStatus(roomCode, userId, isReady)
-        io.to(roomCode).emit("readyStatusChanged", userId, isReady)
-        console.log("Emitted readyStatusChanged event:", userId, isReady)
+        // Emit the event to all clients in the room
+        io.to(roomCode).emit("readyStatusChanged", { userId, isReady })
     } catch (error) {
         console.error("Error in handleReadyStatusChange:", error)
         socket.emit("error", "Could not update ready status")

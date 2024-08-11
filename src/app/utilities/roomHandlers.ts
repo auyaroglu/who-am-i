@@ -39,20 +39,22 @@ export const handleReadyToggle = async (
         }
 
         const newIsReady = !currentUser?.isReady
+
+        // Update the ready status in the database
         await updateUserReadyStatus(roomData.roomCode, userId, newIsReady)
 
-        // Emit the change to the server
+        // Emit the readyStatusChanged event to the server with correct parameters
         if (socket) {
-            socket.emit(
-                "readyStatusChanged",
-                roomData.roomCode,
-                userId,
-                newIsReady
-            )
+            socket.emit("readyStatusChanged", {
+                roomCode: roomData.roomCode,
+                userId: userId,
+                isReady: newIsReady,
+            })
         }
 
-        setUsers((prevUsers: User[]) =>
-            prevUsers.map((user: User) =>
+        // Update the local state
+        setUsers((prevUsers) =>
+            prevUsers.map((user) =>
                 user.id === userId ? { ...user, isReady: newIsReady } : user
             )
         )
