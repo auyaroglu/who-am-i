@@ -32,3 +32,21 @@ export const isRoom = (obj: any): obj is Room => {
         "settings" in obj
     )
 }
+
+export const validateRoom = (obj: any): obj is Room => {
+    return (
+        obj &&
+        typeof obj === "object" &&
+        "users" in obj &&
+        "roomCode" in obj &&
+        "slug" in obj &&
+        "settings" in obj &&
+        Array.isArray(obj.users) &&
+        typeof obj.roomCode === "string" &&
+        typeof obj.slug === "string" &&
+        typeof obj.settings === "object" &&
+        typeof obj.settings.duration === "number" &&
+        typeof obj.settings.playerCount === "string" &&
+        typeof obj.settings.roundCount === "number"
+    )
+}

@@ -1,6 +1,3 @@
-/* tslint:disable */
-/* eslint-disable */
-
 export interface Category {
     id: string
     name: string
@@ -13,6 +10,13 @@ export interface User {
     nickname: string
     categories: string[]
     isAdmin: boolean
+    isReady: boolean
+}
+
+export interface RoomSettings {
+    duration: number
+    playerCount: string
+    roundCount: number
 }
 
 export interface Room {
@@ -20,13 +24,26 @@ export interface Room {
     users: User[]
     roomCode: string
     slug: string
-    settings: {
-        duration: number
-        playerCount: string
-        roundCount: string
-    }
+    settings: RoomSettings
 }
 
 export interface searchParamsProps {
     [key: string]: string | undefined
+}
+
+export interface RoomFormProps {
+    room: Room
+    isAdmin: boolean
+    onPlayerCountChange: (newPlayerCount: string) => void
+}
+
+export interface RoomScreenProps {
+    roomData: Room
+    userId: string
+}
+
+export interface PlayerListProps {
+    players: User[]
+    currentUserId: string
+    playerCount: number
 }

@@ -1,5 +1,5 @@
 import React from "react"
-import MainForm from "./forms/MainForm"
+import MainForm from "../forms/MainForm"
 import { getPayloadHMR } from "@payloadcms/next/utilities"
 import configPromise from "@payload-config"
 import { Category, searchParamsProps } from "@/app/shared-types"

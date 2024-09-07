@@ -11,14 +11,14 @@ import {
     isRoom,
 } from "@/app/lib/utils"
 import { generateUniqueSlug } from "@/app/lib/server-utils"
-import { Room, User } from "@/app/shared-types"
+import { Room, RoomSettings, User } from "@/app/shared-types"
 
 const payload = await getPayloadHMR({ config: configPromise })
 
 export const createRoom = async (
     nickname: string,
     categories: string[]
-): Promise<{ slug: string; userId: string }> => {
+): Promise<{ roomCode: string; userId: string }> => {
     try {
         const roomCode = generateRoomCode()
         const baseSlug = `${generateSlug(nickname)}-${roomCode}`
@@ -30,8 +30,9 @@ export const createRoom = async (
             users: [
                 {
                     nickname,
-                    categories: extractCategoryIds(categories), // Ensure this is an array of IDs
-                    isAdmin: true, // Room creator is admin
+                    categories: extractCategoryIds(categories),
+                    isAdmin: true,
+                    isReady: true, // Admin her zaman ready
                 } as User,
             ],
             settings: {
@@ -46,7 +47,7 @@ export const createRoom = async (
             data: newRoomData,
         })) as unknown as Room
 
-        return { slug: uniqueSlug, userId: newRoom.users[0].id! }
+        return { roomCode: roomCode, userId: newRoom.users[0].id! }
     } catch (error) {
         console.error("Yeni oda oluşturulurken hata oluştu:", error)
         throw new Error(
@@ -59,37 +60,40 @@ export const joinRoom = async (
     roomCode: string,
     nickname: string,
     categories: string[]
-): Promise<{ slug: string; userId: string } | string> => {
+): Promise<{ roomCode: string; userId: string } | string> => {
     try {
+        // Fetch existing room data
         const existingRoom = await payload.find({
             collection: "rooms",
-            where: {
-                roomCode: {
-                    equals: roomCode,
-                },
-            },
+            where: { roomCode: { equals: roomCode } },
         })
 
+        // Check if the room exists
         if (existingRoom.docs.length > 0) {
             const room = existingRoom.docs[0] as unknown as Room
 
+            // Ensure the room data structure is correct
             if (!isRoom(room)) {
-                throw new Error("Mevcut oda verisi beklenen yapıda değil.")
+                throw new Error("Room data structure is not as expected.")
             }
 
-            // Check if player with the same nickname already exists
+            // Ensure room.users is an array
+            if (!Array.isArray(room.users)) {
+                throw new Error("The 'users' property is not an array.")
+            }
+
+            // Check for duplicate nickname
             if (room.users.some((user) => user.nickname === nickname)) {
-                return "Aynı oda içerisinde ad zaten mevcut. Lütfen başka bir takma ad seçin."
+                return "The nickname is already in use in this room. Please choose another."
             }
 
-            // Check if the room is full
+            // Check if the room has reached its player capacity
             if (room.users.length >= parseInt(room.settings.playerCount, 10)) {
-                return "Oda tamamen dolduğu için giriş yapamazsınız."
+                return "The room is full. You cannot join."
             }
 
+            // Update the user list
             const roomId = room.id
-
-            // Extract existing users and convert category objects to IDs
             const existingUsers = room.users.map((user) => ({
                 ...user,
                 categories: extractCategoryIds(user.categories),
@@ -98,9 +102,11 @@ export const joinRoom = async (
             const newUser: User = {
                 nickname,
                 categories: extractCategoryIds(categories),
-                isAdmin: false, // Participant is not admin
+                isAdmin: false,
+                isReady: false,
             }
 
+            // Update the room with the new user
             const updatedRoom = (await payload.update({
                 collection: "rooms",
                 id: roomId,
@@ -110,28 +116,184 @@ export const joinRoom = async (
             })) as unknown as Room
 
             return {
-                slug: room.slug,
+                roomCode: room.roomCode,
                 userId: updatedRoom.users[updatedRoom.users.length - 1].id!,
             }
         } else {
-            return "Bu kod ile oluşturulmuş oda bulunamadı."
+            return "No room found with the provided code."
         }
     } catch (error) {
-        console.error("Odaya katılırken hata oluştu:", error)
+        console.error("Error while joining the room:", error)
         throw new Error(
-            `Odaya katılırken hata oluştu: ${(error as Error).message}`
+            `Error while joining the room: ${(error as Error).message}`
         )
     }
 }
 
 export const saveRoomData = async (
     formData: z.infer<typeof MainFormSchema>
-): Promise<{ slug: string; userId: string } | string> => {
+): Promise<{ roomCode: string; userId: string } | string> => {
     const { nickname, categories, roomCode } = formData
 
     if (roomCode) {
         return joinRoom(roomCode, nickname, categories)
     } else {
         return createRoom(nickname, categories)
+    }
+}
+
+export const getRoomData = async (roomCode: string): Promise<Room | null> => {
+    try {
+        // Fetch room data by room code
+        const result = await payload.find({
+            collection: "rooms",
+            where: {
+                roomCode: {
+                    equals: roomCode,
+                },
+            },
+        })
+
+        if (result.docs.length > 0) {
+            const room = result.docs[0] as unknown as Room
+
+            // Ensure the users field is an array
+            if (!Array.isArray(room.users)) {
+                room.users = []
+            }
+
+            return room
+        } else {
+            console.error("Room not found.")
+        }
+    } catch (error) {
+        console.error("Error fetching room data:", error)
+    }
+
+    // Return null if no room data is found or an error occurs
+    return null
+}
+
+export const updateRoomSettings = async (
+    roomCode: string,
+    newSettings: RoomSettings
+): Promise<string> => {
+    try {
+        const room = await getRoomData(roomCode)
+        if (!room) {
+            return "Oda bilgileri alınamadı"
+        }
+        if (room.users.length > parseInt(newSettings.playerCount, 10)) {
+            return "Odadaki oyuncu sayısından küçük bir değer seçilemez."
+        }
+
+        await payload.update({
+            collection: "rooms",
+            id: room.id,
+            data: { settings: newSettings },
+        })
+
+        return "success"
+    } catch (error) {
+        console.error("Oda ayarları güncellenirken hata oluştu:", error)
+        return "Oda ayarları güncellenirken bir hata oluştu."
+    }
+}
+
+export const leaveRoom = async (
+    roomCode: string,
+    userId: string
+): Promise<void> => {
+    try {
+        const result = await payload.find({
+            collection: "rooms",
+            where: {
+                roomCode: {
+                    equals: roomCode,
+                },
+            },
+        })
+
+        if (result.docs.length === 0) {
+            console.error(`Room ${roomCode} not found`)
+            return
+        }
+
+        const roomDoc = result.docs[0]
+
+        // Use isRoom utility function to verify the structure
+        if (!isRoom(roomDoc)) {
+            console.error(`Room ${roomCode} does not have a valid structure`)
+            return
+        }
+
+        const room = roomDoc as Room
+
+        const updatedUsers = room.users.filter((user) => user.id !== userId)
+
+        if (
+            room.users.find((user) => user.id === userId)?.isAdmin &&
+            updatedUsers.length > 0
+        ) {
+            // Promote the next user to admin
+            updatedUsers[0].isAdmin = true
+            updatedUsers[0].isReady = true
+
+            console.log(
+                `User ${updatedUsers[0].id} is now the admin of room ${roomCode}`
+            )
+        }
+
+        if (updatedUsers.length > 0) {
+            // Update the room with the new list of users
+            await payload.update({
+                collection: "rooms",
+                id: room.id,
+                data: {
+                    users: updatedUsers,
+                },
+            })
+        } else {
+            // If there are no users left in the room, delete the room
+            await payload.delete({
+                collection: "rooms",
+                id: room.id,
+            })
+
+            console.log(`Room ${roomCode} deleted because it was empty`)
+        }
+    } catch (error) {
+        console.error("Error while leaving the room:", error)
+    }
+}
+
+export const updateUserReadyStatus = async (
+    roomCode: string,
+    userId: string,
+    isReady: boolean
+): Promise<void> => {
+    try {
+        const room = await getRoomData(roomCode)
+        if (!room) {
+            throw new Error("Oda bilgileri alınamadı")
+        }
+
+        const updatedUsers = room.users.map((user) =>
+            user.id === userId ? { ...user, isReady } : user
+        )
+
+        await payload.update({
+            collection: "rooms",
+            id: room.id,
+            data: {
+                users: updatedUsers.map((user) => ({
+                    ...user,
+                    categories: extractCategoryIds(user.categories),
+                })),
+            },
+        })
+    } catch (error) {
+        console.error("Kullanıcı durumu güncellenirken hata oluştu:", error)
+        throw error
     }
 }

@@ -15,7 +15,7 @@ const Rooms: CollectionConfig = {
             name: "slug",
             type: "text",
             required: true,
-            unique: true, // Slug alanını unique yapıyoruz
+            unique: true,
         },
         {
             label: "Oyuncular",
@@ -42,6 +42,23 @@ const Rooms: CollectionConfig = {
                     required: true,
                     defaultValue: false,
                 },
+                {
+                    label: "Hazır mı?",
+                    name: "isReady",
+                    type: "checkbox",
+                    required: true,
+                    defaultValue: false,
+                    hooks: {
+                        beforeChange: [
+                            ({ value, data, originalDoc }) => {
+                                if (data?.isAdmin || originalDoc?.isAdmin) {
+                                    return true // Admin kullanıcılar için her zaman true
+                                }
+                                return value ?? false
+                            },
+                        ],
+                    },
+                },
             ],
         },
         {
@@ -62,19 +79,19 @@ const Rooms: CollectionConfig = {
                     options: [
                         {
                             label: "2 Oyuncu",
-                            value: "2", // value as string
+                            value: "2",
                         },
                         {
                             label: "4 Oyuncu",
-                            value: "4", // value as string
+                            value: "4",
                         },
                         {
                             label: "6 Oyuncu",
-                            value: "6", // value as string
+                            value: "6",
                         },
                         {
                             label: "8 Oyuncu",
-                            value: "8", // value as string
+                            value: "8",
                         },
                     ],
                     required: true,
@@ -86,15 +103,15 @@ const Rooms: CollectionConfig = {
                     options: [
                         {
                             label: "10 Tur",
-                            value: "10", // value as string
+                            value: "10",
                         },
                         {
                             label: "15 Tur",
-                            value: "15", // value as string
+                            value: "15",
                         },
                         {
                             label: "20 Tur",
-                            value: "20", // value as string
+                            value: "20",
                         },
                     ],
                     required: true,

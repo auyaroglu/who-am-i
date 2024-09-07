@@ -1,5 +1,5 @@
 import React from "react"
-import MainScreen from "../components/MainScreen"
+import MainScreen from "../components/screens/MainScreen"
 import { searchParamsProps } from "@/app/shared-types"
 
 const Home = async ({ searchParams }: { searchParams: searchParamsProps }) => {
