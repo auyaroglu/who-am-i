@@ -12,7 +12,8 @@
         "lint": "cross-env NODE_OPTIONS=--no-deprecation next lint",
         "payload": "cross-env NODE_OPTIONS=--no-deprecation payload",
         "start": "cross-env NODE_OPTIONS=--no-deprecation next start",
-        "format": "prettier --write \"src/**/*.{js,jsx,ts,tsx}\""
+        "format": "prettier --write \"src/**/*.{js,jsx,ts,tsx}\"",
+        "server": "npx tsx server.ts"
     },
     "dependencies": {
         "@hookform/resolvers": "^3.9.0",
