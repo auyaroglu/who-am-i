@@ -128,7 +128,7 @@ const MainForm = ({
                                     )}
                                     placeholder="Tam olarak 3 kategori seçin..."
                                     emptyIndicator={
-                                        <p className="text-lg leading-10 text-center text-gray-600 dark:text-gray-400">
+                                        <p className="text-center text-lg leading-10 text-gray-600 dark:text-gray-400">
                                             Sonuç bulunamadı.
                                         </p>
                                     }
@@ -160,7 +160,8 @@ const MainForm = ({
                                 <Input
                                     id="roomCode"
                                     type="text"
-                                    placeholder="Oda kodunu giriniz..."
+                                    disabled
+                                    placeholder="Girmek istediğiniz odanın kodu..."
                                     {...field}
                                 />
                             </FormControl>
@@ -190,7 +191,7 @@ const MainForm = ({
 
                 <Button
                     type="submit"
-                    className="w-full px-4 py-2 mt-4 text-white bg-blue-500 rounded hover:bg-blue-700"
+                    className="mt-4 w-full rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-700"
                     disabled={isLoading}
                 >
                     {isLoading ? <ButtonLoading /> : "Oda Oluştur veya Katıl"}
