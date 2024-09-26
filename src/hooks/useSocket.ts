@@ -18,7 +18,7 @@ const useSocket = (url: string): CustomSocket | null => {
         const socketInstance: CustomSocket = io(url, {
             path: "/api/socket",
             transports: ["websocket"],
-            secure: true, // Ensure the connection is secure
+            secure: process.env.NODE_ENV === "production", // Production'da secure: true
         }) as CustomSocket // Casting to CustomSocket type
 
         setSocket(socketInstance)
