@@ -1,7 +1,8 @@
 import express from "express"
-import { createServer } from "http"
+import { createServer } from "https"
 import { Server as SocketIOServer } from "socket.io"
 import dotenv from "dotenv"
+import { readFileSync } from "fs"
 import {
     joinRoomHandler,
     leaveRoomHandler,
@@ -11,12 +12,21 @@ import {
 } from "@/websocket/handlers/roomHandler"
 import { connectToDatabase } from "@/websocket/database"
 
+// Environment değişkenlerini yükle
 dotenv.config()
 
 const app = express()
-const httpServer = createServer(app)
 
-const io = new SocketIOServer(httpServer, {
+// SSL sertifika ve anahtar dosyalarını env dosyasından alıyoruz
+const httpsOptions = {
+    key: readFileSync(process.env.SSL_KEY_PATH!), // env dosyasından anahtar dosyası yolu
+    cert: readFileSync(process.env.SSL_CERT_PATH!), // env dosyasından sertifika dosyası yolu
+}
+
+// HTTPS sunucusunu oluştur
+const httpsServer = createServer(httpsOptions, app)
+
+const io = new SocketIOServer(httpsServer, {
     path: "/api/socket",
     cors: {
         origin: "*",
@@ -54,8 +64,8 @@ io.on("connection", (socket) => {
 const startServer = async () => {
     try {
         await connectToDatabase()
-        httpServer.listen(PORT, () => {
-            console.log(`Server is running on http://localhost:${PORT}`)
+        httpsServer.listen(PORT, () => {
+            console.log(`Server is running on https://localhost:${PORT}`)
         })
     } catch (error) {
         console.error("Error starting the server:", error)
