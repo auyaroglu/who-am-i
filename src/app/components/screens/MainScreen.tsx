@@ -23,8 +23,8 @@ const MainScreen = async ({
     }))
 
     return (
-        <div className="flex min-h-screen w-full items-center justify-center">
-            <div className="mx-auto w-full max-w-sm rounded-lg bg-orange-gradient p-4 shadow-lg">
+        <div className="w-full min-h-screen flex justify-center items-center">
+            <div className="bg-orange-gradient mx-auto w-full max-w-sm p-4 rounded-lg shadow-lg">
                 <MainForm categories={categories} searchParams={searchParams} />
             </div>
         </div>

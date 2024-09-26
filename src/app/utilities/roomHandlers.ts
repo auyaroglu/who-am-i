@@ -32,14 +32,13 @@ export const handleReadyToggle = async (
         if (currentUser?.isAdmin) {
             toast({
                 title: "Error",
-                description: "Admin cannot change their ready status.",
+                description: "Admin kendi durumunu güncelleyemez.",
                 variant: "destructive",
             })
             return
         }
 
         const newIsReady = !currentUser?.isReady
-
         // Update the ready status in the database
         await updateUserReadyStatus(roomData.roomCode, userId, newIsReady)
 
@@ -61,7 +60,8 @@ export const handleReadyToggle = async (
     } catch (error) {
         toast({
             title: "Error",
-            description: "An error occurred while updating readiness status.",
+            description:
+                "Oyuncunun 'hazır' durumu güncellenirken bir hata oluştu.",
             variant: "destructive",
         })
     }
@@ -215,7 +215,11 @@ export const handleReadyStatusChange = async (
             socket.emit("error", "Room not found")
             return
         }
-
+        console.log("updateUserReadyStatus fonksiyonu çağrılıyor", {
+            roomCode,
+            userId,
+            isReady,
+        })
         await updateUserReadyStatus(roomCode, userId, isReady)
         io.to(roomCode).emit("readyStatusChanged", userId, isReady)
     } catch (error) {
