@@ -1,4 +1,3 @@
-// src/app/components/forms/MainForm.tsx
 "use client"
 
 import React, { useState } from "react"
@@ -22,6 +21,7 @@ import { Category, searchParamsProps } from "@/app/shared-types"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/app/components/ui/use-toast"
 import ButtonLoading from "../ButtonLoading"
+import ReCAPTCHA from "react-google-recaptcha"
 
 const MainForm = ({
     categories,
@@ -40,12 +40,23 @@ const MainForm = ({
             nickname: "",
             categories: [],
             roomCode: searchParams?.roomCode || "",
+            captchaValue: "",
         },
     })
 
     async function onSubmit(values: z.infer<typeof MainFormSchema>) {
         setIsLoading(true)
         try {
+            // `captchaValue`'nın dolu olup olmadığını kontrol et
+            if (!values.captchaValue) {
+                toast({
+                    title: "Hata",
+                    description: "Lütfen reCAPTCHA doğrulamasını tamamlayın.",
+                    variant: "destructive",
+                })
+                return
+            }
+
             const result = await saveRoomData(values)
             if (typeof result === "string") {
                 toast({
@@ -54,7 +65,6 @@ const MainForm = ({
                     variant: "destructive",
                 })
             } else {
-                console.log(result)
                 router.push(
                     `/room?user=${result.userId}&code=${result.roomCode}`
                 )
@@ -118,7 +128,7 @@ const MainForm = ({
                                     )}
                                     placeholder="Tam olarak 3 kategori seçin..."
                                     emptyIndicator={
-                                        <p className="text-center text-lg leading-10 text-gray-600 dark:text-gray-400">
+                                        <p className="text-lg leading-10 text-center text-gray-600 dark:text-gray-400">
                                             Sonuç bulunamadı.
                                         </p>
                                     }
@@ -144,7 +154,7 @@ const MainForm = ({
                                 htmlFor="roomCode"
                                 className="text-white"
                             >
-                                Oda Kodu (Katılmak istediğiniz oda kodunu girin)
+                                Oda Kodu
                             </FormLabel>
                             <FormControl>
                                 <Input
@@ -159,9 +169,28 @@ const MainForm = ({
                     )}
                 />
 
+                <FormField
+                    name="captchaValue"
+                    control={form.control}
+                    render={({ field }) => (
+                        <FormItem>
+                            <ReCAPTCHA
+                                sitekey={
+                                    process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY
+                                }
+                                onChange={(value: string | null) => {
+                                    field.onChange(value) // ReCAPTCHA değeri form değerine ekleniyor
+                                }}
+                                className="my-4"
+                            />
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+
                 <Button
                     type="submit"
-                    className="mt-4 w-full rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-700"
+                    className="w-full px-4 py-2 mt-4 text-white bg-blue-500 rounded hover:bg-blue-700"
                     disabled={isLoading}
                 >
                     {isLoading ? <ButtonLoading /> : "Oda Oluştur veya Katıl"}

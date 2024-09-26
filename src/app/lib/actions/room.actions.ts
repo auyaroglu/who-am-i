@@ -1,3 +1,4 @@
+// src/lib/actions/room.actions.ts
 "use server"
 
 import { getPayloadHMR } from "@payloadcms/next/utilities"
@@ -12,14 +13,39 @@ import {
 } from "@/app/lib/utils"
 import { generateUniqueSlug } from "@/app/lib/server-utils"
 import { Room, RoomSettings, User } from "@/app/shared-types"
+import axios from "axios"
 
 const payload = await getPayloadHMR({ config: configPromise })
 
+const RECAPTCHA_SECRET_KEY = process.env
+    .NEXT_PUBLIC_RECAPTCHA_SECRET_KEY as string
+
+const verifyCaptcha = async (captchaValue: string) => {
+    const response = await axios.post(
+        `https://www.google.com/recaptcha/api/siteverify`,
+        null,
+        {
+            params: {
+                secret: RECAPTCHA_SECRET_KEY,
+                response: captchaValue,
+            },
+        }
+    )
+    return response.data.success
+}
+
 export const createRoom = async (
     nickname: string,
-    categories: string[]
+    categories: string[],
+    captchaValue: string
 ): Promise<{ roomCode: string; userId: string }> => {
     try {
+        // Verify the captcha
+        const isCaptchaValid = await verifyCaptcha(captchaValue)
+        if (!isCaptchaValid) {
+            throw new Error("reCAPTCHA doğrulaması başarısız.")
+        }
+
         const roomCode = generateRoomCode()
         const baseSlug = `${generateSlug(nickname)}-${roomCode}`
         const uniqueSlug = await generateUniqueSlug(baseSlug)
@@ -59,9 +85,16 @@ export const createRoom = async (
 export const joinRoom = async (
     roomCode: string,
     nickname: string,
-    categories: string[]
+    categories: string[],
+    captchaValue: string
 ): Promise<{ roomCode: string; userId: string } | string> => {
     try {
+        // Verify the captcha
+        const isCaptchaValid = await verifyCaptcha(captchaValue)
+        if (!isCaptchaValid) {
+            return "reCAPTCHA doğrulaması başarısız."
+        }
+
         // Fetch existing room data
         const existingRoom = await payload.find({
             collection: "rooms",
@@ -133,12 +166,12 @@ export const joinRoom = async (
 export const saveRoomData = async (
     formData: z.infer<typeof MainFormSchema>
 ): Promise<{ roomCode: string; userId: string } | string> => {
-    const { nickname, categories, roomCode } = formData
+    const { nickname, categories, roomCode, captchaValue } = formData
 
     if (roomCode) {
-        return joinRoom(roomCode, nickname, categories)
+        return joinRoom(roomCode, nickname, categories, captchaValue)
     } else {
-        return createRoom(nickname, categories)
+        return createRoom(nickname, categories, captchaValue)
     }
 }
 
@@ -274,6 +307,7 @@ export const updateUserReadyStatus = async (
 ): Promise<void> => {
     try {
         const room = await getRoomData(roomCode)
+
         if (!room) {
             throw new Error("Oda bilgileri alınamadı")
         }
@@ -293,7 +327,9 @@ export const updateUserReadyStatus = async (
             },
         })
     } catch (error) {
-        console.error("Kullanıcı durumu güncellenirken hata oluştu:", error)
-        throw error
+        console.error(
+            "Kullanıcının hazır durumunu güncellerken hata oluştu:",
+            error
+        )
     }
 }

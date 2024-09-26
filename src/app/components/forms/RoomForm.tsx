@@ -69,63 +69,63 @@ const RoomForm: React.FC<RoomFormProps> = ({
 
     return (
         <div className="mb-6">
-            <h3 className="mb-2 text-center text-lg font-semibold">
-                Room Settings
+            <h3 className="mb-2 text-lg font-semibold text-center">
+                Oda Ayarları
             </h3>
             <div className="space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="flex justify-between items-center">
                     <label htmlFor="timer" className="text-sm font-medium">
-                        Timer
+                        Süre
                     </label>
                     {isAdmin ? (
                         <select
                             id="timer"
-                            className="block w-2/3 rounded border bg-white p-2"
+                            className="w-2/3 block p-2 bg-white rounded border"
                             value={duration}
                             onChange={(e) =>
                                 handleDurationChangeWithSocket(e.target.value)
                             }
                         >
-                            <option value="30">30 seconds</option>
-                            <option value="45">45 seconds</option>
-                            <option value="60">60 seconds</option>
+                            <option value="30">30 saniye</option>
+                            <option value="45">45 saniye</option>
+                            <option value="60">60 saniye</option>
                         </select>
                     ) : (
-                        <span>{duration} seconds</span>
+                        <span>{duration} saniye</span>
                     )}
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex justify-between items-center">
                     <label htmlFor="turns" className="text-sm font-medium">
-                        Rounds
+                        Tur Sayısı
                     </label>
                     {isAdmin ? (
                         <select
                             id="turns"
-                            className="block w-2/3 rounded border bg-white p-2"
+                            className="w-2/3 block p-2 bg-white rounded border"
                             value={roundCount}
                             onChange={(e) =>
                                 handleRoundCountChangeWithSocket(e.target.value)
                             }
                         >
-                            <option value="10">10 rounds</option>
-                            <option value="15">15 rounds</option>
-                            <option value="20">20 rounds</option>
+                            <option value="10">10 tur</option>
+                            <option value="15">15 tur</option>
+                            <option value="20">20 tur</option>
                         </select>
                     ) : (
-                        <span>{roundCount} rounds</span>
+                        <span>{roundCount} tur</span>
                     )}
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex justify-between items-center">
                     <label
                         htmlFor="playerCount"
                         className="text-sm font-medium"
                     >
-                        Player Count
+                        Oyuncu Sayısı
                     </label>
                     {isAdmin ? (
                         <select
                             id="playerCount"
-                            className="block w-2/3 rounded border bg-white p-2"
+                            className="w-2/3 block p-2 bg-white rounded border"
                             value={playerCount}
                             onChange={(e) =>
                                 handlePlayerCountChangeWithSocket(
@@ -133,13 +133,13 @@ const RoomForm: React.FC<RoomFormProps> = ({
                                 )
                             }
                         >
-                            <option value="2">2 Players</option>
-                            <option value="4">4 Players</option>
-                            <option value="6">6 Players</option>
-                            <option value="8">8 Players</option>
+                            <option value="2">2 Oyuncu</option>
+                            <option value="4">4 Oyuncu</option>
+                            <option value="6">6 Oyuncu</option>
+                            <option value="8">8 Oyuncu</option>
                         </select>
                     ) : (
-                        <span>{playerCount} players</span>
+                        <span>{playerCount} oyuncu</span>
                     )}
                 </div>
             </div>
